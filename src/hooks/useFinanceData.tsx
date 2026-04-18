@@ -7,67 +7,157 @@ import {
   type PropsWithChildren,
 } from 'react'
 import {
-  seedAccountBalanceTrend,
+  currencyColors,
+  periodOptions,
   seedAccounts,
-  seedExpenseCategories,
-  seedInvestmentAssets,
-  seedMonthlyExpenses,
-  seedNetWorthTrend,
-  seedPortfolioSeries,
+  seedBudgets,
+  seedCalendar,
+  seedFxRates,
+  seedIndices,
+  seedNews,
+  seedPositions,
+  seedStrategyTargets,
+  seedTaxCreditBuckets,
   seedTransactions,
+  seedWatchlist,
+  supportedCurrencies,
 } from '../data/seed'
 import type {
-  AccountBalancePoint,
   AccountItem,
-  AllocationItem,
-  ExpenseCategory,
-  InvestmentAsset,
-  MonthlyExpensePoint,
-  NetWorthPoint,
-  PeriodOption,
-  PortfolioPoint,
+  BudgetCategory,
+  CalendarItem,
+  CashflowPoint,
+  CurrencyCode,
+  ExposureItem,
+  FxRateMap,
+  MarketIndex,
+  NewsItem,
+  PortfolioPosition,
+  SaleSimulation,
+  SimulatedSaleLot,
+  StrategyTarget,
   SummaryMetric,
+  TaxCreditBucket,
   TransactionItem,
+  WatchlistItem,
 } from '../data/types'
+import { convertWithEuroBaseRates, monthKey, monthLabelFromKey } from '../lib/utils'
 
-const STORAGE_KEY = 'financial-dashboard-state-v1'
+const STORAGE_KEY = 'fintracker-pro-state-v2'
 
 interface FinanceState {
+  baseCurrency: CurrencyCode
   accounts: AccountItem[]
-  accountBalanceTrend: AccountBalancePoint[]
-  investmentAssets: InvestmentAsset[]
-  monthlyExpenses: MonthlyExpensePoint[]
-  expenseCategories: ExpenseCategory[]
-  recentTransactions: TransactionItem[]
-  netWorthTrend: NetWorthPoint[]
-  portfolioSeries: Record<PeriodOption['key'], PortfolioPoint[]>
+  budgets: BudgetCategory[]
+  transactions: TransactionItem[]
+  positions: PortfolioPosition[]
+  watchlist: WatchlistItem[]
+  calendarItems: CalendarItem[]
+  taxCredits: TaxCreditBucket[]
+  strategyTargets: StrategyTarget[]
 }
 
-interface TransactionInput {
-  merchant: string
+interface PositionDraft {
+  symbol: string
+  name: string
+  assetType: PortfolioPosition['assetType']
+  quantity: number
+  buyPrice: number
+  currentPrice: number
+  currency: CurrencyCode
+  purchaseDate: string
+  hedged: boolean
+  annualDividendPerShare?: number
+  thesis?: string
+}
+
+interface TransactionDraft {
+  title: string
   category: string
   amount: number
+  currency: CurrencyCode
+  date: string
+  type: 'income' | 'expense'
+  accountId: string
+}
+
+interface WatchlistDraft {
+  symbol: string
+  name: string
+  category: string
+  currency: CurrencyCode
+  notes: string
+}
+
+interface CalendarDraft {
+  title: string
+  date: string
+  kind: CalendarItem['kind']
+  amount?: number
+  currency?: CurrencyCode
+}
+
+interface PositionInsight extends PortfolioPosition {
+  costOriginal: number
+  marketValueOriginal: number
+  pnlOriginal: number
+  pnlOriginalPct: number
+  currentFxRate: number
+  costBase: number
+  marketValueBase: number
+  pnlBase: number
+  pnlBasePct: number
+  fxImpactBase: number
 }
 
 interface FinanceContextValue extends FinanceState {
+  supportedCurrencies: CurrencyCode[]
+  fxRates: FxRateMap
+  fxUpdatedAt: string
+  fxSource: string
+  fxStatus: 'live' | 'fallback'
+  marketIndices: MarketIndex[]
+  marketStatus: 'live' | 'fallback'
+  newsItems: NewsItem[]
   summaryMetrics: SummaryMetric[]
-  moneyAllocation: AllocationItem[]
-  investmentPeriods: PeriodOption[]
-  updateAccountBalance: (name: string, balance: number) => void
-  updateInvestmentValue: (symbol: string, value: number) => void
-  addTransaction: (input: TransactionInput) => void
+  cashflowSeries: CashflowPoint[]
+  exposure: ExposureItem[]
+  positionInsights: PositionInsight[]
+  basePortfolioValue: number
+  hedgingAlert: string | null
+  strategyAlert: string | null
+  dividendMonthlyAverageBase: number
+  dividendCoveragePct: number
+  annualDividendIncomeBase: number
+  taxCreditRemaining: number
+  taxCreditExpiring: TaxCreditBucket[]
+  periodOptions: typeof periodOptions
+  setBaseCurrency: (currency: CurrencyCode) => void
+  addTransaction: (input: TransactionDraft) => void
+  updateBudget: (id: string, budget: number) => void
+  addPosition: (input: PositionDraft) => Promise<void>
+  updatePositionPrice: (id: string, price: number) => void
+  addWatchlistItem: (input: WatchlistDraft) => void
+  addCalendarItem: (input: CalendarDraft) => void
+  updatePositionNotes: (id: string, thesis: string) => void
+  updateStrategyTarget: (assetType: PortfolioPosition['assetType'], targetPct: number) => void
+  simulateSale: (symbol: string, quantity: number, method: 'FIFO' | 'LIFO') => SaleSimulation | null
+  exportFiscalCsv: () => string
+  refreshFxRates: () => Promise<void>
+  refreshMarketData: () => Promise<void>
   resetData: () => void
 }
 
 const defaultState: FinanceState = {
+  baseCurrency: 'EUR',
   accounts: seedAccounts,
-  accountBalanceTrend: seedAccountBalanceTrend,
-  investmentAssets: seedInvestmentAssets,
-  monthlyExpenses: seedMonthlyExpenses,
-  expenseCategories: seedExpenseCategories,
-  recentTransactions: seedTransactions,
-  netWorthTrend: seedNetWorthTrend,
-  portfolioSeries: seedPortfolioSeries,
+  budgets: seedBudgets,
+  transactions: seedTransactions,
+  positions: seedPositions,
+  watchlist: seedWatchlist,
+  calendarItems: seedCalendar,
+  taxCredits: seedTaxCreditBuckets,
+  strategyTargets: seedStrategyTargets,
 }
 
 const FinanceContext = createContext<FinanceContextValue | null>(null)
@@ -84,155 +174,587 @@ function readState(): FinanceState {
   }
 }
 
-const investmentPeriods: PeriodOption[] = [
-  { label: '1M', key: '1M' },
-  { label: '3M', key: '3M' },
-  { label: 'YTD', key: 'YTD' },
-  { label: '1A', key: '1A' },
-]
+function createId(prefix: string) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+async function fetchLatestFxRates() {
+  const response = await fetch(
+    'https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD,GBP,JPY,CHF,CAD',
+  )
+  if (!response.ok) {
+    throw new Error('FX request failed')
+  }
+  const data = (await response.json()) as { date: string; rates: Record<string, number> }
+  return {
+    rates: {
+      EUR: 1,
+      USD: data.rates.USD,
+      GBP: data.rates.GBP,
+      JPY: data.rates.JPY,
+      CHF: data.rates.CHF,
+      CAD: data.rates.CAD,
+    } satisfies FxRateMap,
+    updatedAt: data.date,
+  }
+}
+
+async function fetchHistoricalFxRate(date: string) {
+  const response = await fetch(
+    `https://api.frankfurter.dev/v1/${date}?base=EUR&symbols=USD,GBP,JPY,CHF,CAD`,
+  )
+  if (!response.ok) {
+    throw new Error('Historical FX request failed')
+  }
+  const data = (await response.json()) as { rates: Record<string, number> }
+  return {
+    EUR: 1,
+    USD: data.rates.USD,
+    GBP: data.rates.GBP,
+    JPY: data.rates.JPY,
+    CHF: data.rates.CHF,
+    CAD: data.rates.CAD,
+  } satisfies FxRateMap
+}
+
+async function fetchMarketQuotes(symbols: string[]) {
+  const query = encodeURIComponent(symbols.join(','))
+  const response = await fetch(
+    `https://financialmodelingprep.com/stable/quote?symbol=${query}&apikey=demo`,
+  )
+  if (!response.ok) {
+    throw new Error('Market request failed')
+  }
+  return (await response.json()) as Array<{
+    symbol: string
+    price: number
+    changePercentage?: number
+  }>
+}
 
 export function FinanceDataProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<FinanceState>(readState)
+  const [fxRates, setFxRates] = useState<FxRateMap>(seedFxRates)
+  const [fxUpdatedAt, setFxUpdatedAt] = useState('fallback')
+  const [fxStatus, setFxStatus] = useState<'live' | 'fallback'>('fallback')
+  const [marketIndices, setMarketIndices] = useState<MarketIndex[]>(seedIndices)
+  const [marketStatus, setMarketStatus] = useState<'live' | 'fallback'>('fallback')
+  const [newsItems] = useState<NewsItem[]>(seedNews)
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
-  const moneyAllocation = useMemo<AllocationItem[]>(() => {
-    const [checking, savings, card, wallet] = state.accounts
-    const investments = state.investmentAssets.reduce((sum, asset) => sum + asset.value, 0)
-
-    return [
-      { label: 'Conti correnti', value: checking?.balance ?? 0, color: '#2dd4bf' },
-      { label: 'Conto risparmio', value: savings?.balance ?? 0, color: '#38bdf8' },
-      { label: 'Carte', value: card?.balance ?? 0, color: '#f59e0b' },
-      { label: 'Wallet', value: wallet?.balance ?? 0, color: '#a78bfa' },
-      { label: 'Investimenti', value: investments, color: '#10b981' },
-    ]
-  }, [state.accounts, state.investmentAssets])
-
-  const summaryMetrics = useMemo<SummaryMetric[]>(() => {
-    const totalCash = state.accounts.reduce((sum, account) => sum + account.balance, 0)
-    const totalInvestments = state.investmentAssets.reduce((sum, asset) => sum + asset.value, 0)
-    const latestExpense = state.monthlyExpenses[state.monthlyExpenses.length - 1]?.amount ?? 0
-    const latestIncome = state.netWorthTrend[state.netWorthTrend.length - 1]?.income ?? 0
-    const previousNetWorth = state.netWorthTrend[state.netWorthTrend.length - 2]?.netWorth ?? 1
-    const currentNetWorth = totalCash + totalInvestments + 145000
-    const netWorthChange = ((currentNetWorth - previousNetWorth) / previousNetWorth) * 100
-
-    return [
-      { label: 'Saldo totale', value: totalCash + totalInvestments, change: 6.2, accent: 'teal' },
-      { label: 'Entrate mensili', value: latestIncome, change: 3.8, accent: 'blue' },
-      { label: 'Uscite mensili', value: latestExpense, change: -4.1, accent: 'amber' },
-      { label: 'Patrimonio netto', value: currentNetWorth, change: netWorthChange, accent: 'violet' },
-    ]
-  }, [state.accounts, state.investmentAssets, state.monthlyExpenses, state.netWorthTrend])
-
-  const updateAccountBalance = (name: string, balance: number) => {
-    setState((current) => {
-      const accounts = current.accounts.map((account) =>
-        account.name === name ? { ...account, balance } : account,
-      )
-
-      const latestTrend = current.accountBalanceTrend[current.accountBalanceTrend.length - 1]
-      const accountMap = new Map(accounts.map((account) => [account.name, account.balance]))
-      const updatedTrend = current.accountBalanceTrend.map((point, index, all) =>
-        index === all.length - 1
-          ? {
-              ...latestTrend,
-              checking: accountMap.get('Conto principale') ?? latestTrend.checking,
-              savings: accountMap.get('Conto risparmio') ?? latestTrend.savings,
-              card: accountMap.get('Carta aziendale') ?? latestTrend.card,
-              wallet: accountMap.get('Wallet digitale') ?? latestTrend.wallet,
-            }
-          : point,
-      )
-
-      return { ...current, accounts, accountBalanceTrend: updatedTrend }
-    })
+  const refreshFxRates = async () => {
+    try {
+      const snapshot = await fetchLatestFxRates()
+      setFxRates(snapshot.rates)
+      setFxUpdatedAt(snapshot.updatedAt)
+      setFxStatus('live')
+    } catch {
+      setFxRates(seedFxRates)
+      setFxUpdatedAt('fallback locale')
+      setFxStatus('fallback')
+    }
   }
 
-  const updateInvestmentValue = (symbol: string, value: number) => {
-    setState((current) => {
-      const investmentAssets = current.investmentAssets.map((asset) =>
-        asset.symbol === symbol ? { ...asset, value } : asset,
+  const refreshMarketData = async () => {
+    try {
+      const symbols = [...seedIndices.map((item) => item.symbol), ...state.watchlist.map((item) => item.symbol)]
+      const quotes = await fetchMarketQuotes(Array.from(new Set(symbols)))
+      const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]))
+
+      setMarketIndices((current) =>
+        current.map((item) => {
+          const live = quoteMap.get(item.symbol)
+          return live
+            ? { ...item, price: live.price, change: live.changePercentage ?? item.change }
+            : item
+        }),
       )
-      const total = investmentAssets.reduce((sum, asset) => sum + asset.value, 0)
-      const withAllocation = investmentAssets.map((asset) => ({
-        ...asset,
-        allocation: total > 0 ? Math.round((asset.value / total) * 100) : 0,
+
+      setState((current) => ({
+        ...current,
+        watchlist: current.watchlist.map((item) => {
+          const live = quoteMap.get(item.symbol)
+          return live
+            ? { ...item, price: live.price, change: live.changePercentage ?? item.change }
+            : item
+        }),
       }))
-      const portfolioSeries = { ...current.portfolioSeries }
-
-      for (const key of Object.keys(portfolioSeries) as PeriodOption['key'][]) {
-        const series = [...portfolioSeries[key]]
-        const lastIndex = series.length - 1
-        series[lastIndex] = { ...series[lastIndex], value: total }
-        portfolioSeries[key] = series
-      }
-
-      return { ...current, investmentAssets: withAllocation, portfolioSeries }
-    })
+      setMarketStatus('live')
+    } catch {
+      setMarketIndices(seedIndices)
+      setMarketStatus('fallback')
+    }
   }
 
-  const addTransaction = ({ merchant, category, amount }: TransactionInput) => {
-    setState((current) => {
-      const date = new Intl.DateTimeFormat('it-IT', {
-        day: '2-digit',
-        month: 'short',
-      }).format(new Date())
-      const icon = merchant.slice(0, 2).toUpperCase()
-      const entry: TransactionItem = { merchant, category, amount, date, icon }
-      const recentTransactions = [entry, ...current.recentTransactions].slice(0, 8)
-      const accounts = current.accounts.map((account, index) =>
-        index === 0 ? { ...account, balance: account.balance + amount } : account,
-      )
+  useEffect(() => {
+    void refreshFxRates()
+    void refreshMarketData()
+  }, [])
 
-      let expenseCategories = current.expenseCategories
-      let monthlyExpenses = current.monthlyExpenses
-      let netWorthTrend = current.netWorthTrend
-
-      if (amount < 0) {
-        expenseCategories = current.expenseCategories.map((item) =>
-          item.name === category ? { ...item, amount: item.amount + Math.abs(amount) } : item,
-        )
-        monthlyExpenses = current.monthlyExpenses.map((item, index, all) =>
-          index === all.length - 1 ? { ...item, amount: item.amount + Math.abs(amount) } : item,
-        )
-        netWorthTrend = current.netWorthTrend.map((item, index, all) =>
-          index === all.length - 1 ? { ...item, expenses: item.expenses + Math.abs(amount) } : item,
-        )
-      } else {
-        netWorthTrend = current.netWorthTrend.map((item, index, all) =>
-          index === all.length - 1 ? { ...item, income: item.income + amount } : item,
-        )
-      }
+  const positionInsights = useMemo<PositionInsight[]>(() => {
+    return state.positions.map((position) => {
+      const costOriginal = position.quantity * position.buyPrice
+      const marketValueOriginal = position.quantity * position.currentPrice
+      const pnlOriginal = marketValueOriginal - costOriginal
+      const pnlOriginalPct = costOriginal > 0 ? (pnlOriginal / costOriginal) * 100 : 0
+      const currentFxRate = convertWithEuroBaseRates(1, position.currency, state.baseCurrency, fxRates)
+      const costBase = costOriginal * position.purchaseFxRate
+      const marketValueBase = marketValueOriginal * currentFxRate
+      const pnlBase = marketValueBase - costBase
+      const pnlBasePct = costBase > 0 ? (pnlBase / costBase) * 100 : 0
+      const fxImpactBase =
+        marketValueOriginal * currentFxRate - marketValueOriginal * position.purchaseFxRate
 
       return {
-        ...current,
-        accounts,
-        recentTransactions,
-        expenseCategories,
-        monthlyExpenses,
-        netWorthTrend,
+        ...position,
+        costOriginal,
+        marketValueOriginal,
+        pnlOriginal,
+        pnlOriginalPct,
+        currentFxRate,
+        costBase,
+        marketValueBase,
+        pnlBase,
+        pnlBasePct,
+        fxImpactBase,
       }
     })
+  }, [fxRates, state.baseCurrency, state.positions])
+
+  const exposure = useMemo<ExposureItem[]>(() => {
+    const total = positionInsights.reduce((sum, item) => sum + item.marketValueBase, 0)
+    const grouped = new Map<CurrencyCode, number>()
+
+    for (const item of positionInsights) {
+      grouped.set(item.currency, (grouped.get(item.currency) ?? 0) + item.marketValueBase)
+    }
+
+    return Array.from(grouped.entries()).map(([currency, valueBase]) => ({
+      currency,
+      valueBase,
+      share: total > 0 ? (valueBase / total) * 100 : 0,
+      color: currencyColors[currency],
+    }))
+  }, [positionInsights])
+
+  const basePortfolioValue = useMemo(
+    () => positionInsights.reduce((sum, item) => sum + item.marketValueBase, 0),
+    [positionInsights],
+  )
+
+  const summaryMetrics = useMemo<SummaryMetric[]>(() => {
+    const cashValue = state.accounts.reduce(
+      (sum, account) =>
+        sum + convertWithEuroBaseRates(account.balance, account.currency, state.baseCurrency, fxRates),
+      0,
+    )
+    const currentMonth = new Date().getMonth()
+    const currentYear = new Date().getFullYear()
+    const currentMonthTransactions = state.transactions.filter((item) => {
+      const date = new Date(item.date)
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear
+    })
+    const income = currentMonthTransactions
+      .filter((item) => item.type === 'income')
+      .reduce(
+        (sum, item) =>
+          sum + convertWithEuroBaseRates(item.amount, item.currency, state.baseCurrency, fxRates),
+        0,
+      )
+    const expenses = Math.abs(
+      currentMonthTransactions
+        .filter((item) => item.type === 'expense')
+        .reduce(
+          (sum, item) =>
+            sum +
+            convertWithEuroBaseRates(item.amount, item.currency, state.baseCurrency, fxRates),
+          0,
+        ),
+    )
+    const usdExposure = exposure.find((item) => item.currency === 'USD')?.share ?? 0
+
+    return [
+      { label: 'Patrimonio totale', value: cashValue + basePortfolioValue, change: 4.2, accent: 'teal' },
+      { label: 'Cashflow mese', value: income - expenses, change: 2.8, accent: 'blue' },
+      { label: 'Portafoglio', value: basePortfolioValue, change: 7.1, accent: 'violet' },
+      { label: 'Esposizione USD', value: usdExposure, change: usdExposure - 50, accent: 'amber' },
+    ]
+  }, [basePortfolioValue, exposure, fxRates, state.accounts, state.baseCurrency, state.transactions])
+
+  const cashflowSeries = useMemo<CashflowPoint[]>(() => {
+    const seedKeys = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']
+    const grouped = new Map(
+      seedKeys.map((key, index) => [
+        key,
+        {
+          month: monthLabelFromKey(key),
+          income: 2200 + index * 110,
+          expenses: 1800 + index * 60,
+          netWorth: 162000 + index * 4300,
+        },
+      ]),
+    )
+
+    for (const transaction of state.transactions) {
+      const key = monthKey(transaction.date)
+      const current = grouped.get(key) ?? {
+        month: monthLabelFromKey(key),
+        income: 0,
+        expenses: 0,
+        netWorth: 0,
+      }
+      const amountInBase = convertWithEuroBaseRates(
+        transaction.amount,
+        transaction.currency,
+        state.baseCurrency,
+        fxRates,
+      )
+      if (transaction.type === 'income') {
+        current.income += amountInBase
+      } else {
+        current.expenses += Math.abs(amountInBase)
+      }
+      grouped.set(key, current)
+    }
+
+    return Array.from(grouped.entries())
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([, value], index, all) => ({
+        ...value,
+        netWorth: summaryMetrics[0].value - (all.length - index - 1) * 3800 + value.income - value.expenses,
+      }))
+  }, [fxRates, state.baseCurrency, state.transactions, summaryMetrics])
+
+  const hedgingAlert = useMemo(() => {
+    const usdShare = exposure.find((item) => item.currency === 'USD')?.share ?? 0
+    return usdShare > 60
+      ? `Attenzione: il ${usdShare.toFixed(0)}% del portafoglio e esposto a USD.`
+      : null
+  }, [exposure])
+
+  const strategyAlert = useMemo(() => {
+    const total = positionInsights.reduce((sum, item) => sum + item.marketValueBase, 0)
+    if (!total) return null
+
+    const actualByType = new Map<PortfolioPosition['assetType'], number>()
+    for (const item of positionInsights) {
+      actualByType.set(
+        item.assetType,
+        (actualByType.get(item.assetType) ?? 0) + (item.marketValueBase / total) * 100,
+      )
+    }
+
+    const worstDrift = state.strategyTargets
+      .map((target) => ({
+        assetType: target.assetType,
+        drift: (actualByType.get(target.assetType) ?? 0) - target.targetPct,
+      }))
+      .sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift))[0]
+
+    return worstDrift && Math.abs(worstDrift.drift) >= 5
+      ? `Strategia fuori range: ${worstDrift.assetType} e a ${worstDrift.drift > 0 ? '+' : ''}${worstDrift.drift.toFixed(1)} punti rispetto al target.`
+      : null
+  }, [positionInsights, state.strategyTargets])
+
+  const annualDividendIncomeBase = useMemo(
+    () =>
+      positionInsights.reduce((sum, item) => {
+        const annualDividend = (item.annualDividendPerShare ?? 0) * item.quantity
+        return (
+          sum +
+          convertWithEuroBaseRates(annualDividend, item.currency, state.baseCurrency, fxRates)
+        )
+      }, 0),
+    [fxRates, positionInsights, state.baseCurrency],
+  )
+
+  const dividendMonthlyAverageBase = annualDividendIncomeBase / 12
+
+  const fixedMonthlyExpensesBase = useMemo(
+    () =>
+      state.budgets
+        .filter((item) => ['Casa', 'Abbonamenti', 'Trasporti'].includes(item.name))
+        .reduce((sum, item) => sum + item.budget, 0),
+    [state.budgets],
+  )
+
+  const dividendCoveragePct =
+    fixedMonthlyExpensesBase > 0 ? (dividendMonthlyAverageBase / fixedMonthlyExpensesBase) * 100 : 0
+
+  const taxCreditRemaining = useMemo(
+    () => state.taxCredits.reduce((sum, item) => sum + (item.amount - item.used), 0),
+    [state.taxCredits],
+  )
+
+  const taxCreditExpiring = useMemo(() => {
+    const cutoff = new Date()
+    cutoff.setMonth(cutoff.getMonth() + 12)
+    return state.taxCredits.filter((item) => new Date(item.expiresAt) <= cutoff)
+  }, [state.taxCredits])
+
+  const setBaseCurrency = (currency: CurrencyCode) => {
+    setState((current) => ({ ...current, baseCurrency: currency }))
   }
 
-  const resetData = () => setState(defaultState)
+  const addTransaction = (input: TransactionDraft) => {
+    setState((current) => ({
+      ...current,
+      transactions: [{ id: createId('tx'), ...input }, ...current.transactions].sort((a, b) =>
+        b.date.localeCompare(a.date),
+      ),
+      budgets:
+        input.type === 'expense'
+          ? current.budgets.map((budget) =>
+              budget.name === input.category
+                ? {
+                    ...budget,
+                    spent:
+                      budget.spent +
+                      Math.abs(
+                        convertWithEuroBaseRates(
+                          input.amount,
+                          input.currency,
+                          current.baseCurrency,
+                          fxRates,
+                        ),
+                      ),
+                  }
+                : budget,
+            )
+          : current.budgets,
+      accounts: current.accounts.map((account) =>
+        account.id === input.accountId
+          ? {
+              ...account,
+              balance:
+                account.balance +
+                (input.type === 'expense' ? -Math.abs(input.amount) : Math.abs(input.amount)),
+            }
+          : account,
+      ),
+    }))
+  }
+
+  const updateBudget = (id: string, budget: number) => {
+    setState((current) => ({
+      ...current,
+      budgets: current.budgets.map((item) => (item.id === id ? { ...item, budget } : item)),
+    }))
+  }
+
+  const addPosition = async (input: PositionDraft) => {
+    let purchaseFxRate = 1
+    if (input.currency !== state.baseCurrency) {
+      try {
+        const historicalRates = await fetchHistoricalFxRate(input.purchaseDate)
+        purchaseFxRate = convertWithEuroBaseRates(1, input.currency, state.baseCurrency, historicalRates)
+      } catch {
+        purchaseFxRate = convertWithEuroBaseRates(1, input.currency, state.baseCurrency, fxRates)
+      }
+    }
+
+    setState((current) => ({
+      ...current,
+      positions: [{ id: createId('pos'), purchaseFxRate, ...input }, ...current.positions],
+    }))
+  }
+
+  const updatePositionPrice = (id: string, price: number) => {
+    setState((current) => ({
+      ...current,
+      positions: current.positions.map((position) =>
+        position.id === id ? { ...position, currentPrice: price } : position,
+      ),
+    }))
+  }
+
+  const addWatchlistItem = (input: WatchlistDraft) => {
+    setState((current) => ({
+      ...current,
+      watchlist: [{ id: createId('watch'), ...input, price: 0, change: 0 }, ...current.watchlist],
+    }))
+  }
+
+  const addCalendarItem = (input: CalendarDraft) => {
+    setState((current) => ({
+      ...current,
+      calendarItems: [{ id: createId('cal'), ...input }, ...current.calendarItems].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      ),
+    }))
+  }
+
+  const updatePositionNotes = (id: string, thesis: string) => {
+    setState((current) => ({
+      ...current,
+      positions: current.positions.map((position) =>
+        position.id === id ? { ...position, thesis } : position,
+      ),
+    }))
+  }
+
+  const updateStrategyTarget = (
+    assetType: PortfolioPosition['assetType'],
+    targetPct: number,
+  ) => {
+    setState((current) => ({
+      ...current,
+      strategyTargets: current.strategyTargets.map((item) =>
+        item.assetType === assetType ? { ...item, targetPct } : item,
+      ),
+    }))
+  }
+
+  const simulateSale = (
+    symbol: string,
+    quantity: number,
+    method: 'FIFO' | 'LIFO',
+  ): SaleSimulation | null => {
+    const lotsPool = state.positions
+      .filter((item) => item.symbol === symbol)
+      .sort((a, b) =>
+        method === 'FIFO'
+          ? a.purchaseDate.localeCompare(b.purchaseDate)
+          : b.purchaseDate.localeCompare(a.purchaseDate),
+      )
+
+    if (!lotsPool.length) return null
+
+    let remaining = quantity
+    const lots: SimulatedSaleLot[] = []
+    let costBase = 0
+    let proceedsBase = 0
+
+    for (const lot of lotsPool) {
+      if (remaining <= 0) break
+      const matchedQty = Math.min(remaining, lot.quantity)
+      const lotCostBase = matchedQty * lot.buyPrice * lot.purchaseFxRate
+      const lotProceedsBase =
+        matchedQty *
+        lot.currentPrice *
+        convertWithEuroBaseRates(1, lot.currency, state.baseCurrency, fxRates)
+      costBase += lotCostBase
+      proceedsBase += lotProceedsBase
+      lots.push({
+        positionId: lot.id,
+        symbol: lot.symbol,
+        quantity: matchedQty,
+        unitCost: lot.buyPrice,
+        proceeds: matchedQty * lot.currentPrice,
+        gainBase: lotProceedsBase - lotCostBase,
+      })
+      remaining -= matchedQty
+    }
+
+    const gainBase = proceedsBase - costBase
+    const compensableCredits = taxCreditRemaining
+    const taxableBase = Math.max(gainBase - compensableCredits, 0)
+    const estimatedTax = taxableBase * 0.26
+
+    return {
+      symbol,
+      quantity: quantity - remaining,
+      method,
+      proceedsBase,
+      costBase,
+      gainBase,
+      estimatedTax,
+      taxRate: 0.26,
+      lots,
+    }
+  }
+
+  const exportFiscalCsv = () => {
+    const header = 'symbol,purchaseDate,assetType,currency,quantity,buyPrice,currentPrice,costBase,marketValueBase,pnlBase,thesis'
+    const rows = positionInsights.map((item) =>
+      [
+        item.symbol,
+        item.purchaseDate,
+        item.assetType,
+        item.currency,
+        item.quantity,
+        item.buyPrice,
+        item.currentPrice,
+        item.costBase.toFixed(2),
+        item.marketValueBase.toFixed(2),
+        item.pnlBase.toFixed(2),
+        `"${(item.thesis ?? '').replace(/"/g, '""')}"`,
+      ].join(','),
+    )
+    return [header, ...rows].join('\n')
+  }
+
+  const resetData = () => {
+    setState(defaultState)
+    setFxRates(seedFxRates)
+    setMarketIndices(seedIndices)
+    setFxStatus('fallback')
+    setMarketStatus('fallback')
+  }
 
   const value = useMemo(
     () => ({
       ...state,
+      supportedCurrencies,
+      fxRates,
+      fxUpdatedAt,
+      fxSource: fxStatus === 'live' ? 'Frankfurter / ECB' : 'Seed locale',
+      fxStatus,
+      marketIndices,
+      marketStatus,
+      newsItems,
       summaryMetrics,
-      moneyAllocation,
-      investmentPeriods,
-      updateAccountBalance,
-      updateInvestmentValue,
+      cashflowSeries,
+      exposure,
+      positionInsights,
+      basePortfolioValue,
+      hedgingAlert,
+      strategyAlert,
+      dividendMonthlyAverageBase,
+      dividendCoveragePct,
+      annualDividendIncomeBase,
+      taxCreditRemaining,
+      taxCreditExpiring,
+      periodOptions,
+      setBaseCurrency,
       addTransaction,
+      updateBudget,
+      addPosition,
+      updatePositionPrice,
+      addWatchlistItem,
+      addCalendarItem,
+      updatePositionNotes,
+      updateStrategyTarget,
+      simulateSale,
+      exportFiscalCsv,
+      refreshFxRates,
+      refreshMarketData,
       resetData,
     }),
-    [state, summaryMetrics, moneyAllocation],
+    [
+      state,
+      fxRates,
+      fxUpdatedAt,
+      fxStatus,
+      marketIndices,
+      marketStatus,
+      newsItems,
+      summaryMetrics,
+      cashflowSeries,
+      exposure,
+      positionInsights,
+      basePortfolioValue,
+      hedgingAlert,
+      strategyAlert,
+      dividendMonthlyAverageBase,
+      dividendCoveragePct,
+      annualDividendIncomeBase,
+      taxCreditRemaining,
+      taxCreditExpiring,
+    ],
   )
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>

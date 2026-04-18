@@ -7,10 +7,13 @@ interface MobileMenuProps {
 }
 
 const navItems = [
-  { to: '/overview', label: 'Panoramica' },
-  { to: '/accounts', label: 'Dove sono i soldi' },
-  { to: '/investments', label: 'Investimenti' },
-  { to: '/expenses', label: 'Spese' },
+  { to: '/overview', label: 'Home' },
+  { to: '/accounts', label: 'Denaro' },
+  { to: '/investments', label: 'Portfolio' },
+  { to: '/expenses', label: 'Mercati' },
+  { to: '/fx', label: 'Cambio' },
+  { to: '/calendar', label: 'Calendario' },
+  { to: '/reports', label: 'Report' },
 ]
 
 export function MobileMenu({ open, onClose }: MobileMenuProps) {

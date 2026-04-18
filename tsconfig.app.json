@@ -21,5 +21,16 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/components/accounts",
+    "src/components/expenses",
+    "src/components/investments",
+    "src/components/overview",
+    "src/pages/Accounts.tsx",
+    "src/pages/Expenses.tsx",
+    "src/pages/Investments.tsx",
+    "src/pages/Overview.tsx",
+    "src/data/mock.ts"
+  ]
 }

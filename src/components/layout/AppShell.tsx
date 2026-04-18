@@ -6,20 +6,32 @@ import { Sidebar } from './Sidebar'
 
 const pageMeta: Record<string, { title: string; subtitle: string }> = {
   '/overview': {
-    title: 'Panoramica',
-    subtitle: 'Stato generale del patrimonio, cashflow e trend degli ultimi 12 mesi.',
+    title: 'Home',
+    subtitle: 'Patrimonio, cashflow, esposizione valutaria e alert del portafoglio.',
   },
   '/accounts': {
-    title: 'Dove Sono I Soldi',
-    subtitle: 'Conti, carte, contanti e wallet con andamento recente.',
+    title: 'Denaro',
+    subtitle: 'Conti, movimenti, budget per categoria e obiettivi mensili.',
   },
   '/investments': {
-    title: 'Investimenti',
-    subtitle: 'Asset allocation, performance e visione del portafoglio.',
+    title: 'Portfolio',
+    subtitle: 'Posizioni multi-currency, P&L doppia valuta ed effetto cambio isolato.',
   },
   '/expenses': {
-    title: 'Spese',
-    subtitle: 'Monitoraggio categorie, trend mensile e ultime transazioni.',
+    title: 'Mercati',
+    subtitle: 'Indici globali, watchlist personale e market brief della giornata.',
+  },
+  '/fx': {
+    title: 'Cambio',
+    subtitle: 'Valuta base personale, convertitore live e confronto acquisto vs cambio attuale.',
+  },
+  '/calendar': {
+    title: 'Calendario',
+    subtitle: 'Scadenze, stipendi attesi, promemoria e prossimi eventi finanziari.',
+  },
+  '/reports': {
+    title: 'Report',
+    subtitle: 'Breakdown visuale di spese, budget e patrimonio per avere il quadro annuale.',
   },
 }
 

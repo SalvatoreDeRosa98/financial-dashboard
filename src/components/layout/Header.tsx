@@ -17,7 +17,7 @@ export function Header({ title, subtitle, onOpenMenu }: HeaderProps) {
         <button className="menu-button" onClick={onOpenMenu} type="button">
           Menu
         </button>
-        <p className="eyebrow">Dashboard finanziaria</p>
+        <p className="eyebrow">FinTracker Pro</p>
         <h1>{title}</h1>
         <p className="subtitle">{subtitle}</p>
       </div>

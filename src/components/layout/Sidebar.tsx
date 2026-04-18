@@ -2,10 +2,13 @@ import { NavLink } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
 
 const navItems = [
-  { to: '/overview', label: 'Panoramica', icon: '01' },
-  { to: '/accounts', label: 'Dove sono i soldi', icon: '02' },
-  { to: '/investments', label: 'Investimenti', icon: '03' },
-  { to: '/expenses', label: 'Spese', icon: '04' },
+  { to: '/overview', label: 'Home', icon: '01' },
+  { to: '/accounts', label: 'Denaro', icon: '02' },
+  { to: '/investments', label: 'Portfolio', icon: '03' },
+  { to: '/expenses', label: 'Mercati', icon: '04' },
+  { to: '/fx', label: 'Cambio', icon: '05' },
+  { to: '/calendar', label: 'Calendario', icon: '06' },
+  { to: '/reports', label: 'Report', icon: '07' },
 ]
 
 export function Sidebar() {
@@ -15,7 +18,7 @@ export function Sidebar() {
         <div className="brand">
           <div className="brand-mark">FD</div>
           <div>
-            <p>Finance Desk</p>
+            <p>FinTracker Pro</p>
             <span>Personal wealth OS</span>
           </div>
         </div>
@@ -38,8 +41,8 @@ export function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-card">
-          <p>Cashflow positivo</p>
-          <strong>+4.060 EUR questo mese</strong>
+          <p>Multi-currency ready</p>
+          <strong>Portfolio, budget, FX e mercati</strong>
         </div>
         <ThemeToggle />
       </div>
