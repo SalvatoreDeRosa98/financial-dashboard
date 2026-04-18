@@ -1,17 +1,30 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useFinanceData } from '../hooks/useFinanceData'
-import { formatCurrency, formatDateLong, formatSignedCurrency, formatSignedPercent, safeNumber } from '../lib/utils'
+import {
+  formatCompactCurrency,
+  formatCurrency,
+  formatDateLong,
+  formatSignedCurrency,
+  formatSignedPercent,
+  safeNumber,
+} from '../lib/utils'
 
 export function PortfolioPage() {
   const {
     addPosition,
+    accounts,
     baseCurrency,
+    basePortfolioValue,
+    dividendMonthlyAverageBase,
     hedgingAlert,
+    portfolioTimeline,
     positionInsights,
     simulateSale,
     strategyAlert,
     strategyTargets,
     taxCreditRemaining,
+    totalLiquidBase,
     updatePositionNotes,
     updatePositionPrice,
     updateStrategyTarget,
@@ -34,12 +47,105 @@ export function PortfolioPage() {
     quantity: '10',
     method: 'FIFO' as 'FIFO' | 'LIFO',
   })
+  const brokerAccount = accounts.find((account) => account.id === 'acc-broker')
+  const totalCostBase = useMemo(
+    () => positionInsights.reduce((sum, position) => sum + position.costBase, 0),
+    [positionInsights],
+  )
+  const totalPnlBase = basePortfolioValue - totalCostBase
+  const totalPnlPct = totalCostBase > 0 ? (totalPnlBase / totalCostBase) * 100 : 0
   const salePreview = simulateSale(sale.symbol, safeNumber(sale.quantity, 0), sale.method)
 
   return (
     <div className="stack gap-lg">
       {hedgingAlert ? <div className="alert-banner warning">{hedgingAlert}</div> : null}
       {strategyAlert ? <div className="alert-banner warning">{strategyAlert}</div> : null}
+
+      <section className="grid metrics-grid">
+        <article className="panel metric-card metric-violet">
+          <p className="muted-label">Valore portafoglio</p>
+          <strong>{formatCurrency(basePortfolioValue, baseCurrency)}</strong>
+          <span className={totalPnlBase >= 0 ? 'positive' : 'negative'}>{formatSignedPercent(totalPnlPct)}</span>
+        </article>
+        <article className="panel metric-card metric-blue">
+          <p className="muted-label">Capitale investito</p>
+          <strong>{formatCurrency(totalCostBase, baseCurrency)}</strong>
+          <span className="muted-text">prezzo medio di carico aggregato</span>
+        </article>
+        <article className="panel metric-card metric-teal">
+          <p className="muted-label">P&amp;L totale</p>
+          <strong>{formatSignedCurrency(totalPnlBase, baseCurrency)}</strong>
+          <span className={totalPnlBase >= 0 ? 'positive' : 'negative'}>{formatSignedPercent(totalPnlPct)}</span>
+        </article>
+        <article className="panel metric-card metric-amber">
+          <p className="muted-label">Broker wallet</p>
+          <strong>
+            {brokerAccount ? formatCurrency(brokerAccount.balance, brokerAccount.currency) : formatCurrency(0, baseCurrency)}
+          </strong>
+          <span className="muted-text">gestito da qui, non da Denaro</span>
+        </article>
+      </section>
+
+      <section className="grid content-grid">
+        <article className="panel span-two">
+          <div className="panel-heading">
+            <div>
+              <p className="muted-label">Andamento complessivo</p>
+              <h2>Quanto valgono oggi tutti gli strumenti acquistati</h2>
+            </div>
+          </div>
+          <div className="chart-wrap">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={portfolioTimeline}>
+                <defs>
+                  <linearGradient id="portfolio-area" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.04} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => formatCompactCurrency(Number(value), baseCurrency)}
+                />
+                <Tooltip formatter={(value) => formatCurrency(Number(value), baseCurrency)} />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#8b5cf6"
+                  strokeWidth={3}
+                  fill="url(#portfolio-area)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="muted-label">Snapshot portfolio</p>
+              <h2>Numeri rapidi da monitorare</h2>
+            </div>
+          </div>
+          <div className="stack gap-sm">
+            <div className="soft-card">
+              <span>Strumenti in portafoglio</span>
+              <strong>{positionInsights.length}</strong>
+            </div>
+            <div className="soft-card">
+              <span>Dividendi medi mensili</span>
+              <strong>{formatCurrency(dividendMonthlyAverageBase, baseCurrency)}</strong>
+            </div>
+            <div className="soft-card">
+              <span>Liquidita pronta da investire</span>
+              <strong>{formatCurrency(totalLiquidBase, baseCurrency)}</strong>
+            </div>
+          </div>
+        </article>
+      </section>
 
       <section className="grid content-grid">
         <article className="panel">
@@ -121,8 +227,8 @@ export function PortfolioPage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Insight portafoglio</p>
-              <h2>P&L reale nella tua valuta base</h2>
+              <p className="muted-label">Portfolio tracker</p>
+              <h2>Prezzo di carico, prezzo attuale e resa di ogni strumento</h2>
             </div>
           </div>
           <div className="stack gap-sm">
@@ -139,26 +245,44 @@ export function PortfolioPage() {
                 </div>
                 <div className="grid tri-grid">
                   <div className="soft-card">
-                    <span>P&L {position.currency}</span>
+                    <span>Prezzo di carico</span>
+                    <strong>{formatCurrency(position.buyPrice, position.currency)}</strong>
+                    <small>{position.quantity} quote</small>
+                  </div>
+                  <div className="soft-card">
+                    <span>Prezzo attuale</span>
+                    <strong>{formatCurrency(position.currentPrice, position.currency)}</strong>
+                    <small>aggiorna il prezzo quando vuoi</small>
+                  </div>
+                  <div className="soft-card">
+                    <span>P&amp;L totale</span>
+                    <strong>{formatSignedCurrency(position.pnlBase, baseCurrency)}</strong>
+                    <small>{formatSignedPercent(position.pnlBasePct)}</small>
+                  </div>
+                </div>
+                <div className="grid tri-grid">
+                  <div className="soft-card">
+                    <span>P&amp;L nella valuta originale</span>
                     <strong>{formatSignedCurrency(position.pnlOriginal, position.currency)}</strong>
                     <small>{formatSignedPercent(position.pnlOriginalPct)}</small>
                   </div>
                   <div className="soft-card">
-                    <span>P&L {baseCurrency}</span>
-                    <strong>{formatSignedCurrency(position.pnlBase, baseCurrency)}</strong>
-                    <small>{formatSignedPercent(position.pnlBasePct)}</small>
+                    <span>Valore attuale</span>
+                    <strong>{formatCurrency(position.marketValueBase, baseCurrency)}</strong>
+                    <small>
+                      {formatCurrency(position.marketValueOriginal, position.currency)} nella valuta strumento
+                    </small>
                   </div>
                   <div className="soft-card">
                     <span>Effetto cambio</span>
                     <strong>{formatSignedCurrency(position.fxImpactBase, baseCurrency)}</strong>
-                    <small>fx purchase {position.purchaseFxRate.toFixed(4)} / now {position.currentFxRate.toFixed(4)}</small>
+                    <small>
+                      fx acquisto {position.purchaseFxRate.toFixed(4)} / oggi {position.currentFxRate.toFixed(4)}
+                    </small>
                   </div>
                 </div>
                 <div className="position-bottom">
-                  <span>
-                    Valore attuale {formatCurrency(position.marketValueOriginal, position.currency)} ={' '}
-                    {formatCurrency(position.marketValueBase, baseCurrency)}
-                  </span>
+                  <span>Acquistato il {formatDateLong(position.purchaseDate)}</span>
                   <div className="row-inline">
                     <input
                       className="input input-small"

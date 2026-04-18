@@ -4,8 +4,16 @@ import { useFinanceData } from '../hooks/useFinanceData'
 import { formatCurrency, formatDateLabel, safeNumber } from '../lib/utils'
 
 export function MoneyPage() {
-  const { accounts, addTransaction, baseCurrency, budgets, cashflowSeries, transactions, updateBudget } =
-    useFinanceData()
+  const {
+    accounts,
+    addTransaction,
+    baseCurrency,
+    budgets,
+    cashflowSeries,
+    transactions,
+    updateAccountBalance,
+    updateBudget,
+  } = useFinanceData()
   const [form, setForm] = useState<{
     title: string
     category: string
@@ -29,9 +37,32 @@ export function MoneyPage() {
       <section className="grid metrics-grid">
         {accounts.map((account) => (
           <article key={account.id} className="panel soft-card">
-            <p className="muted-label">{account.institution}</p>
-            <strong>{account.name}</strong>
+            <div className="row-between">
+              <div className="stack">
+                <p className="muted-label">{account.institution}</p>
+                <strong>{account.name}</strong>
+              </div>
+              <span className="small-pill">{account.editable ? 'Modificabile' : 'Gestito dal portfolio'}</span>
+            </div>
             <div className="large-value">{formatCurrency(account.balance, account.currency)}</div>
+            {account.editable ? (
+              <div className="inline-editor">
+                <label htmlFor={`account-${account.id}`}>Saldo attuale</label>
+                <input
+                  id={`account-${account.id}`}
+                  className="input"
+                  defaultValue={account.balance}
+                  type="number"
+                  onBlur={(event) =>
+                    updateAccountBalance(account.id, safeNumber(event.target.value, account.balance))
+                  }
+                />
+              </div>
+            ) : (
+              <p className="muted-text">
+                Questo saldo segue il portafoglio e si aggiorna dalla sezione investimenti.
+              </p>
+            )}
           </article>
         ))}
       </section>

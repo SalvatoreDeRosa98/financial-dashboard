@@ -16,6 +16,7 @@ export interface AccountItem {
   balance: number
   currency: CurrencyCode
   tone: string
+  editable: boolean
 }
 
 export interface BudgetCategory {
@@ -80,6 +81,7 @@ export interface MarketIndex {
   price: number
   change: number
   currency: CurrencyCode
+  chartSymbol: string
 }
 
 export interface NewsItem {
@@ -89,6 +91,23 @@ export interface NewsItem {
   publishedAt: string
   summary: string
   url: string
+}
+
+export interface OpportunityItem {
+  id: string
+  symbol: string
+  name: string
+  kind: 'Stock' | 'ETF'
+  region: string
+  currency: CurrencyCode
+  price: number
+  performance: {
+    day: number
+    week: number
+    month: number
+    threeMonths: number
+    year: number
+  }
 }
 
 export interface FxRateMap extends Record<CurrencyCode, number> {}

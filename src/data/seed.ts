@@ -6,6 +6,7 @@ import type {
   FxRateMap,
   MarketIndex,
   NewsItem,
+  OpportunityItem,
   PeriodOption,
   PortfolioPosition,
   StrategyTarget,
@@ -49,6 +50,7 @@ export const seedAccounts: AccountItem[] = [
     balance: 18240,
     currency: 'EUR',
     tone: 'teal',
+    editable: true,
   },
   {
     id: 'acc-save',
@@ -57,6 +59,7 @@ export const seedAccounts: AccountItem[] = [
     balance: 8450,
     currency: 'USD',
     tone: 'blue',
+    editable: true,
   },
   {
     id: 'acc-card',
@@ -65,6 +68,7 @@ export const seedAccounts: AccountItem[] = [
     balance: 2960,
     currency: 'EUR',
     tone: 'amber',
+    editable: true,
   },
   {
     id: 'acc-broker',
@@ -73,6 +77,7 @@ export const seedAccounts: AccountItem[] = [
     balance: 5100,
     currency: 'USD',
     tone: 'violet',
+    editable: false,
   },
 ]
 
@@ -266,10 +271,11 @@ export const seedCalendar: CalendarItem[] = [
 ]
 
 export const seedIndices: MarketIndex[] = [
-  { symbol: '^GSPC', name: 'S&P 500', region: 'USA', price: 5230, change: 0.42, currency: 'USD' },
-  { symbol: '^FTMIB', name: 'FTSE MIB', region: 'Italia', price: 34620, change: 0.58, currency: 'EUR' },
-  { symbol: '^GDAXI', name: 'DAX', region: 'Germania', price: 18220, change: -0.21, currency: 'EUR' },
-  { symbol: '^N225', name: 'Nikkei 225', region: 'Giappone', price: 38540, change: 0.95, currency: 'JPY' },
+  { symbol: '^GSPC', name: 'S&P 500', region: 'USA', price: 5230, change: 0.42, currency: 'USD', chartSymbol: 'SP:SPX' },
+  { symbol: '^IXIC', name: 'Nasdaq 100', region: 'USA', price: 18340, change: 0.64, currency: 'USD', chartSymbol: 'NASDAQ:NDX' },
+  { symbol: '^FTMIB', name: 'FTSE MIB', region: 'Italia', price: 34620, change: 0.58, currency: 'EUR', chartSymbol: 'INDEX:FTSEMIB' },
+  { symbol: '^GDAXI', name: 'DAX', region: 'Germania', price: 18220, change: -0.21, currency: 'EUR', chartSymbol: 'XETR:DAX' },
+  { symbol: '^N225', name: 'Nikkei 225', region: 'Giappone', price: 38540, change: 0.95, currency: 'JPY', chartSymbol: 'INDEX:NKY' },
 ]
 
 export const seedNews: NewsItem[] = [
@@ -288,5 +294,68 @@ export const seedNews: NewsItem[] = [
     publishedAt: '2026-04-18T10:00:00.000Z',
     summary: 'Tema utile per watchlist e ribilanciamento in ottica di riduzione volatilita.',
     url: 'https://example.com/news/rotation-quality',
+  },
+]
+
+export const seedOpportunities: OpportunityItem[] = [
+  {
+    id: 'opp-1',
+    symbol: 'NVDA',
+    name: 'NVIDIA',
+    kind: 'Stock',
+    region: 'USA',
+    currency: 'USD',
+    price: 972.4,
+    performance: { day: 2.4, week: 4.1, month: 9.8, threeMonths: 21.5, year: 86.4 },
+  },
+  {
+    id: 'opp-2',
+    symbol: 'ASML',
+    name: 'ASML Holding',
+    kind: 'Stock',
+    region: 'Europa',
+    currency: 'EUR',
+    price: 892.6,
+    performance: { day: 1.1, week: 2.8, month: 7.4, threeMonths: 14.2, year: 31.9 },
+  },
+  {
+    id: 'opp-3',
+    symbol: 'VWCE',
+    name: 'Vanguard FTSE All-World',
+    kind: 'ETF',
+    region: 'Globale',
+    currency: 'EUR',
+    price: 121.2,
+    performance: { day: 0.4, week: 1.2, month: 3.8, threeMonths: 8.7, year: 17.2 },
+  },
+  {
+    id: 'opp-4',
+    symbol: 'CSPX',
+    name: 'iShares Core S&P 500 UCITS',
+    kind: 'ETF',
+    region: 'USA',
+    currency: 'USD',
+    price: 592.1,
+    performance: { day: 0.7, week: 1.8, month: 5.5, threeMonths: 11.3, year: 24.1 },
+  },
+  {
+    id: 'opp-5',
+    symbol: 'SMH',
+    name: 'VanEck Semiconductor ETF',
+    kind: 'ETF',
+    region: 'USA',
+    currency: 'USD',
+    price: 256.8,
+    performance: { day: 1.9, week: 5.1, month: 12.7, threeMonths: 26.4, year: 52.2 },
+  },
+  {
+    id: 'opp-6',
+    symbol: 'SAP',
+    name: 'SAP',
+    kind: 'Stock',
+    region: 'Europa',
+    currency: 'EUR',
+    price: 181.7,
+    performance: { day: 0.6, week: 1.9, month: 4.5, threeMonths: 10.9, year: 28.4 },
   },
 ]

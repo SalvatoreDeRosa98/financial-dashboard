@@ -15,6 +15,7 @@ import {
   seedFxRates,
   seedIndices,
   seedNews,
+  seedOpportunities,
   seedPositions,
   seedStrategyTargets,
   seedTaxCreditBuckets,
@@ -32,6 +33,7 @@ import type {
   FxRateMap,
   MarketIndex,
   NewsItem,
+  OpportunityItem,
   PortfolioPosition,
   SaleSimulation,
   SimulatedSaleLot,
@@ -119,11 +121,14 @@ interface FinanceContextValue extends FinanceState {
   marketIndices: MarketIndex[]
   marketStatus: 'live' | 'fallback'
   newsItems: NewsItem[]
+  opportunities: OpportunityItem[]
   summaryMetrics: SummaryMetric[]
   cashflowSeries: CashflowPoint[]
   exposure: ExposureItem[]
   positionInsights: PositionInsight[]
   basePortfolioValue: number
+  totalLiquidBase: number
+  portfolioTimeline: Array<{ month: string; total: number }>
   hedgingAlert: string | null
   strategyAlert: string | null
   dividendMonthlyAverageBase: number
@@ -135,6 +140,7 @@ interface FinanceContextValue extends FinanceState {
   setBaseCurrency: (currency: CurrencyCode) => void
   addTransaction: (input: TransactionDraft) => void
   updateBudget: (id: string, budget: number) => void
+  updateAccountBalance: (id: string, balance: number) => void
   addPosition: (input: PositionDraft) => Promise<void>
   updatePositionPrice: (id: string, price: number) => void
   addWatchlistItem: (input: WatchlistDraft) => void
@@ -240,6 +246,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   const [marketIndices, setMarketIndices] = useState<MarketIndex[]>(seedIndices)
   const [marketStatus, setMarketStatus] = useState<'live' | 'fallback'>('fallback')
   const [newsItems] = useState<NewsItem[]>(seedNews)
+  const [opportunities] = useState<OpportunityItem[]>(seedOpportunities)
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -345,12 +352,17 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     [positionInsights],
   )
 
+  const totalLiquidBase = useMemo(
+    () =>
+      state.accounts.reduce(
+        (sum, account) =>
+          sum + convertWithEuroBaseRates(account.balance, account.currency, state.baseCurrency, fxRates),
+        0,
+      ),
+    [fxRates, state.accounts, state.baseCurrency],
+  )
+
   const summaryMetrics = useMemo<SummaryMetric[]>(() => {
-    const cashValue = state.accounts.reduce(
-      (sum, account) =>
-        sum + convertWithEuroBaseRates(account.balance, account.currency, state.baseCurrency, fxRates),
-      0,
-    )
     const currentMonth = new Date().getMonth()
     const currentYear = new Date().getFullYear()
     const currentMonthTransactions = state.transactions.filter((item) => {
@@ -374,15 +386,13 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
           0,
         ),
     )
-    const usdExposure = exposure.find((item) => item.currency === 'USD')?.share ?? 0
-
     return [
-      { label: 'Patrimonio totale', value: cashValue + basePortfolioValue, change: 4.2, accent: 'teal' },
-      { label: 'Cashflow mese', value: income - expenses, change: 2.8, accent: 'blue' },
-      { label: 'Portafoglio', value: basePortfolioValue, change: 7.1, accent: 'violet' },
-      { label: 'Esposizione USD', value: usdExposure, change: usdExposure - 50, accent: 'amber' },
+      { label: 'Patrimonio totale', value: totalLiquidBase + basePortfolioValue, change: 4.2, accent: 'teal' },
+      { label: 'Liquidita disponibile', value: totalLiquidBase, change: 2.1, accent: 'blue' },
+      { label: 'Portafoglio investito', value: basePortfolioValue, change: 7.1, accent: 'violet' },
+      { label: 'Crescita mensile', value: income - expenses, change: 2.8, accent: 'amber' },
     ]
-  }, [basePortfolioValue, exposure, fxRates, state.accounts, state.baseCurrency, state.transactions])
+  }, [basePortfolioValue, fxRates, state.baseCurrency, state.transactions, totalLiquidBase])
 
   const cashflowSeries = useMemo<CashflowPoint[]>(() => {
     const seedKeys = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']
@@ -427,6 +437,14 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
         netWorth: summaryMetrics[0].value - (all.length - index - 1) * 3800 + value.income - value.expenses,
       }))
   }, [fxRates, state.baseCurrency, state.transactions, summaryMetrics])
+
+  const portfolioTimeline = useMemo(() => {
+    const currentTotal = basePortfolioValue
+    return ['Nov', 'Dic', 'Gen', 'Feb', 'Mar', 'Apr'].map((month, index, all) => ({
+      month,
+      total: currentTotal - (all.length - index - 1) * 1800,
+    }))
+  }, [basePortfolioValue])
 
   const hedgingAlert = useMemo(() => {
     const usdShare = exposure.find((item) => item.currency === 'USD')?.share ?? 0
@@ -542,6 +560,15 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     setState((current) => ({
       ...current,
       budgets: current.budgets.map((item) => (item.id === id ? { ...item, budget } : item)),
+    }))
+  }
+
+  const updateAccountBalance = (id: string, balance: number) => {
+    setState((current) => ({
+      ...current,
+      accounts: current.accounts.map((account) =>
+        account.id === id && account.editable ? { ...account, balance } : account,
+      ),
     }))
   }
 
@@ -706,11 +733,14 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       marketIndices,
       marketStatus,
       newsItems,
+      opportunities,
       summaryMetrics,
       cashflowSeries,
       exposure,
       positionInsights,
       basePortfolioValue,
+      totalLiquidBase,
+      portfolioTimeline,
       hedgingAlert,
       strategyAlert,
       dividendMonthlyAverageBase,
@@ -722,6 +752,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       setBaseCurrency,
       addTransaction,
       updateBudget,
+      updateAccountBalance,
       addPosition,
       updatePositionPrice,
       addWatchlistItem,
@@ -742,11 +773,14 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       marketIndices,
       marketStatus,
       newsItems,
+      opportunities,
       summaryMetrics,
       cashflowSeries,
       exposure,
       positionInsights,
       basePortfolioValue,
+      totalLiquidBase,
+      portfolioTimeline,
       hedgingAlert,
       strategyAlert,
       dividendMonthlyAverageBase,
