@@ -1,0 +1,152 @@
+<h2>Design della Dashboard — Layout Completo</h2>
+<p class="subtitle">React + Vite · Tailwind + shadcn/ui · Recharts · Dark/Light toggle · Sidebar</p>
+
+<div class="mockup">
+  <div class="mockup-header">Desktop Layout (1280px+)</div>
+  <div class="mockup-body" style="padding:0;overflow:hidden;">
+    <div style="display:flex;background:#0f1117;min-height:420px;font-family:system-ui,sans-serif;">
+
+      <!-- Sidebar -->
+      <div style="width:200px;background:#161827;padding:1.25rem 0.75rem;display:flex;flex-direction:column;gap:0.25rem;flex-shrink:0;">
+        <div style="padding:0 0.5rem;margin-bottom:1.25rem;">
+          <span style="font-size:0.85rem;font-weight:700;color:#6366f1;">FinTrack</span>
+        </div>
+        <div style="padding:0.5rem 0.75rem;border-radius:6px;background:#6366f115;border-left:2px solid #6366f1;">
+          <span style="font-size:0.7rem;color:#fff;">📊 Panoramica</span>
+        </div>
+        <div style="padding:0.5rem 0.75rem;border-radius:6px;">
+          <span style="font-size:0.7rem;color:#8b8fa8;">💰 Dove sono i soldi</span>
+        </div>
+        <div style="padding:0.5rem 0.75rem;border-radius:6px;">
+          <span style="font-size:0.7rem;color:#8b8fa8;">📈 Investimenti</span>
+        </div>
+        <div style="padding:0.5rem 0.75rem;border-radius:6px;">
+          <span style="font-size:0.7rem;color:#8b8fa8;">🧾 Spese</span>
+        </div>
+        <div style="flex:1;"></div>
+        <div style="padding:0.5rem 0.75rem;border-radius:6px;display:flex;align-items:center;gap:0.4rem;">
+          <span style="font-size:0.65rem;color:#8b8fa8;">🌗 Dark</span>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <div style="flex:1;padding:1.25rem;display:flex;flex-direction:column;gap:0.75rem;overflow:hidden;">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:0.9rem;font-weight:600;color:#fff;">Buongiorno, Salvatore 👋</div>
+            <div style="font-size:0.6rem;color:#8b8fa8;">Aprile 2026</div>
+          </div>
+          <div style="font-size:0.6rem;color:#6366f1;background:#6366f115;padding:0.25rem 0.6rem;border-radius:20px;">↻ Aggiorna</div>
+        </div>
+
+        <!-- KPI Cards Row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;">
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;">
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-bottom:0.3rem;">SALDO TOTALE</div>
+            <div style="font-size:1rem;font-weight:700;color:#fff;">€ 42.850</div>
+            <div style="font-size:0.5rem;color:#22c55e;margin-top:0.2rem;">▲ +3.2% vs mese scorso</div>
+          </div>
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;">
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-bottom:0.3rem;">ENTRATE APR</div>
+            <div style="font-size:1rem;font-weight:700;color:#22c55e;">€ 3.200</div>
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-top:0.2rem;">Stipendio + freelance</div>
+          </div>
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;">
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-bottom:0.3rem;">USCITE APR</div>
+            <div style="font-size:1rem;font-weight:700;color:#ef4444;">€ 1.847</div>
+            <div style="font-size:0.5rem;color:#ef444480;margin-top:0.2rem;">▲ +12% vs media</div>
+          </div>
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;">
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-bottom:0.3rem;">PATRIMONIO NETTO</div>
+            <div style="font-size:1rem;font-weight:700;color:#a78bfa;">€ 38.250</div>
+            <div style="font-size:0.5rem;color:#22c55e;margin-top:0.2rem;">▲ +€ 820 questo mese</div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.6rem;flex:1;">
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;">
+            <div style="font-size:0.6rem;color:#8b8fa8;margin-bottom:0.5rem;font-weight:600;">ANDAMENTO PATRIMONIO — 12 mesi</div>
+            <div style="height:80px;position:relative;">
+              <svg width="100%" height="80" viewBox="0 0 400 80" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,65 L40,58 L80,52 L120,55 L160,45 L200,42 L240,38 L280,30 L320,25 L360,20 L400,15" fill="none" stroke="#6366f1" stroke-width="2"/>
+                <path d="M0,65 L40,58 L80,52 L120,55 L160,45 L200,42 L240,38 L280,30 L320,25 L360,20 L400,15 L400,80 L0,80Z" fill="url(#g1)"/>
+              </svg>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.45rem;color:#8b8fa8;margin-top:0.25rem;">
+              <span>Apr 25</span><span>Lug 25</span><span>Ott 25</span><span>Gen 26</span><span>Apr 26</span>
+            </div>
+          </div>
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;">
+            <div style="font-size:0.6rem;color:#8b8fa8;margin-bottom:0.5rem;font-weight:600;">RIPARTIZIONE</div>
+            <div style="display:flex;flex-direction:column;gap:0.4rem;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.5rem;margin-bottom:0.2rem;"><span style="color:#fff;">Conto corrente</span><span style="color:#8b8fa8;">52%</span></div>
+                <div style="height:4px;background:#ffffff15;border-radius:2px;"><div style="width:52%;height:100%;background:#6366f1;border-radius:2px;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.5rem;margin-bottom:0.2rem;"><span style="color:#fff;">Investimenti</span><span style="color:#8b8fa8;">31%</span></div>
+                <div style="height:4px;background:#ffffff15;border-radius:2px;"><div style="width:31%;height:100%;background:#22c55e;border-radius:2px;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.5rem;margin-bottom:0.2rem;"><span style="color:#fff;">Contanti</span><span style="color:#8b8fa8;">9%</span></div>
+                <div style="height:4px;background:#ffffff15;border-radius:2px;"><div style="width:9%;height:100%;background:#f59e0b;border-radius:2px;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.5rem;margin-bottom:0.2rem;"><span style="color:#fff;">Wallet / Crypto</span><span style="color:#8b8fa8;">8%</span></div>
+                <div style="height:4px;background:#ffffff15;border-radius:2px;"><div style="width:8%;height:100%;background:#a78bfa;border-radius:2px;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:1.25rem;display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;">
+
+  <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:1rem;">
+    <p class="label">Struttura file</p>
+    <pre style="font-size:0.65rem;color:#a78bfa;margin-top:0.5rem;line-height:1.7;">src/
+  components/
+    layout/     Sidebar, Header, ThemeToggle
+    overview/   KpiCards, NetWorthChart
+    accounts/   AccountList, MoneyBreakdown
+    investments/ AssetPie, PortfolioLine, ReturnBadge
+    expenses/   CategoryBar, MonthlyChart, TxList
+  data/
+    mock.ts     tutti i dati mock tipizzati
+  pages/
+    Overview.tsx
+    Accounts.tsx
+    Investments.tsx
+    Expenses.tsx
+  App.tsx       Router + ThemeProvider</pre>
+  </div>
+
+  <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:1rem;">
+    <p class="label">Stack confermato</p>
+    <div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.4rem;">
+      <div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#22c55e;">✓</span><span style="font-size:0.7rem;color:#fff;">React 18 + Vite</span></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#22c55e;">✓</span><span style="font-size:0.7rem;color:#fff;">TypeScript</span></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#22c55e;">✓</span><span style="font-size:0.7rem;color:#fff;">Tailwind CSS v3</span></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#22c55e;">✓</span><span style="font-size:0.7rem;color:#fff;">shadcn/ui</span></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#22c55e;">✓</span><span style="font-size:0.7rem;color:#fff;">Recharts</span></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#22c55e;">✓</span><span style="font-size:0.7rem;color:#fff;">React Router v6</span></div>
+      <div style="display:flex;align-items:center;gap:0.5rem;"><span style="font-size:0.7rem;color:#22c55e;">✓</span><span style="font-size:0.7rem;color:#fff;">Dark/Light toggle (next-themes)</span></div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:1.25rem;">Questo è il layout della pagina Panoramica. Le altre 3 pagine seguono lo stesso pattern con contenuto diverso. Ti sembra giusto?</p>

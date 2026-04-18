@@ -1,0 +1,123 @@
+<h2>Sezione 3 — Investimenti</h2>
+<p class="subtitle">Asset allocation, andamento portafoglio e rendimento</p>
+
+<div class="mockup">
+  <div class="mockup-header">Pagina: Investimenti</div>
+  <div class="mockup-body" style="padding:0;overflow:hidden;">
+    <div style="display:flex;background:#0f1117;min-height:400px;font-family:system-ui,sans-serif;">
+
+      <!-- Sidebar -->
+      <div style="width:180px;background:#161827;padding:1rem 0.75rem;flex-shrink:0;">
+        <div style="font-size:0.8rem;font-weight:700;color:#6366f1;margin-bottom:1rem;">FinTrack</div>
+        <div style="padding:0.4rem 0.6rem;border-radius:6px;margin-bottom:0.2rem;"><span style="font-size:0.65rem;color:#8b8fa8;">📊 Panoramica</span></div>
+        <div style="padding:0.4rem 0.6rem;border-radius:6px;margin-bottom:0.2rem;"><span style="font-size:0.65rem;color:#8b8fa8;">💰 Dove sono i soldi</span></div>
+        <div style="padding:0.4rem 0.6rem;border-radius:6px;background:#6366f115;border-left:2px solid #6366f1;margin-bottom:0.2rem;"><span style="font-size:0.65rem;color:#fff;">📈 Investimenti</span></div>
+        <div style="padding:0.4rem 0.6rem;border-radius:6px;"><span style="font-size:0.65rem;color:#8b8fa8;">🧾 Spese</span></div>
+      </div>
+
+      <!-- Content -->
+      <div style="flex:1;padding:1.25rem;display:flex;flex-direction:column;gap:0.6rem;">
+
+        <div style="font-size:0.85rem;font-weight:600;color:#fff;">Investimenti</div>
+
+        <!-- Return badges row -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;">
+          <div style="background:#1e2130;border-radius:10px;padding:0.65rem;">
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-bottom:0.25rem;">VALORE PORTAFOGLIO</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#fff;">€ 13.280</div>
+            <div style="font-size:0.5rem;color:#22c55e;">▲ +€ 1.430 totale</div>
+          </div>
+          <div style="background:#1e2130;border-radius:10px;padding:0.65rem;">
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-bottom:0.25rem;">RENDIMENTO YTD</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#22c55e;">+12.08%</div>
+            <div style="font-size:0.5rem;color:#8b8fa8;">da inizio anno</div>
+          </div>
+          <div style="background:#1e2130;border-radius:10px;padding:0.65rem;">
+            <div style="font-size:0.5rem;color:#8b8fa8;margin-bottom:0.25rem;">RENDIMENTO MENSILE</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#22c55e;">+1.84%</div>
+            <div style="font-size:0.5rem;color:#8b8fa8;">aprile 2026</div>
+          </div>
+        </div>
+
+        <!-- Portfolio chart + Asset allocation -->
+        <div style="display:grid;grid-template-columns:3fr 2fr;gap:0.6rem;flex:1;">
+
+          <!-- Line chart portafoglio -->
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+              <div style="font-size:0.55rem;color:#8b8fa8;font-weight:600;">ANDAMENTO PORTAFOGLIO</div>
+              <div style="display:flex;gap:0.3rem;">
+                <span style="font-size:0.45rem;color:#6366f1;background:#6366f115;padding:0.15rem 0.4rem;border-radius:10px;">1M</span>
+                <span style="font-size:0.45rem;color:#8b8fa8;padding:0.15rem 0.4rem;">3M</span>
+                <span style="font-size:0.45rem;color:#8b8fa8;padding:0.15rem 0.4rem;">YTD</span>
+                <span style="font-size:0.45rem;color:#8b8fa8;padding:0.15rem 0.4rem;">1A</span>
+              </div>
+            </div>
+            <div style="height:90px;">
+              <svg width="100%" height="90" viewBox="0 0 400 90" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#22c55e" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,70 L50,65 L100,68 L150,55 L200,50 L250,40 L300,35 L350,28 L400,20" fill="none" stroke="#22c55e" stroke-width="2"/>
+                <path d="M0,70 L50,65 L100,68 L150,55 L200,50 L250,40 L300,35 L350,28 L400,20 L400,90 L0,90Z" fill="url(#pg)"/>
+              </svg>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.45rem;color:#8b8fa8;margin-top:0.2rem;">
+              <span>1 Mar</span><span>8 Mar</span><span>15 Mar</span><span>22 Mar</span><span>1 Apr</span><span>8 Apr</span><span>15 Apr</span>
+            </div>
+          </div>
+
+          <!-- Asset allocation list -->
+          <div style="background:#1e2130;border-radius:10px;padding:0.75rem;display:flex;flex-direction:column;gap:0.35rem;">
+            <div style="font-size:0.55rem;color:#8b8fa8;font-weight:600;margin-bottom:0.2rem;">ASSET ALLOCATION</div>
+            <div style="padding:0.4rem 0.5rem;background:#161827;border-radius:6px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem;">
+                <span style="font-size:0.55rem;color:#fff;">🇺🇸 ETF S&P500</span>
+                <span style="font-size:0.55rem;color:#22c55e;">+18.4%</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <span style="font-size:0.5rem;color:#8b8fa8;">€ 6.200 · 46%</span>
+                <div style="width:40px;height:3px;background:#ffffff15;border-radius:2px;align-self:center;"><div style="width:46%;height:100%;background:#6366f1;border-radius:2px;"></div></div>
+              </div>
+            </div>
+            <div style="padding:0.4rem 0.5rem;background:#161827;border-radius:6px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem;">
+                <span style="font-size:0.55rem;color:#fff;">🌍 ETF World</span>
+                <span style="font-size:0.55rem;color:#22c55e;">+11.2%</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <span style="font-size:0.5rem;color:#8b8fa8;">€ 4.080 · 31%</span>
+                <div style="width:40px;height:3px;background:#ffffff15;border-radius:2px;align-self:center;"><div style="width:31%;height:100%;background:#22c55e;border-radius:2px;"></div></div>
+              </div>
+            </div>
+            <div style="padding:0.4rem 0.5rem;background:#161827;border-radius:6px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem;">
+                <span style="font-size:0.55rem;color:#fff;">₿ Bitcoin</span>
+                <span style="font-size:0.55rem;color="#ef4444;">-4.1%</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <span style="font-size:0.5rem;color:#8b8fa8;">€ 1.900 · 14%</span>
+                <div style="width:40px;height:3px;background:#ffffff15;border-radius:2px;align-self:center;"><div style="width:14%;height:100%;background:#f59e0b;border-radius:2px;"></div></div>
+              </div>
+            </div>
+            <div style="padding:0.4rem 0.5rem;background:#161827;border-radius:6px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem;">
+                <span style="font-size:0.55rem;color:#fff;">🏦 BTP Italia</span>
+                <span style="font-size:0.55rem;color:#22c55e;">+3.8%</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <span style="font-size:0.5rem;color:#8b8fa8;">€ 1.100 · 9%</span>
+                <div style="width:40px;height:3px;background:#ffffff15;border-radius:2px;align-self:center;"><div style="width:9%;height:100%;background:#a78bfa;border-radius:2px;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1rem;">3 badge rendimento + grafico portafoglio con filtro temporale + lista asset allocation. OK?</p>

@@ -1,0 +1,84 @@
+<h2>Struttura della navigazione?</h2>
+<p class="subtitle">Come si muove l'utente tra le sezioni della dashboard</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="sidebar" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1e2130;border-radius:8px;padding:1rem;display:flex;gap:0.5rem;min-height:140px;">
+      <div style="width:28%;background:#161827;border-radius:6px;padding:0.5rem;">
+        <div style="font-size:0.5rem;color:#6366f1;font-weight:700;margin-bottom:0.75rem;">FINTRACK</div>
+        <div style="font-size:0.5rem;color:#ffffff;background:#6366f120;padding:0.25rem 0.4rem;border-radius:4px;margin-bottom:0.3rem;">📊 Panoramica</div>
+        <div style="font-size:0.5rem;color:#8b8fa8;padding:0.25rem 0.4rem;margin-bottom:0.3rem;">💰 Conti</div>
+        <div style="font-size:0.5rem;color:#8b8fa8;padding:0.25rem 0.4rem;margin-bottom:0.3rem;">📈 Investimenti</div>
+        <div style="font-size:0.5rem;color:#8b8fa8;padding:0.25rem 0.4rem;">🧾 Spese</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:0.4rem;">
+        <div style="background:#161827;border-radius:6px;padding:0.5rem;flex:1;">
+          <div style="font-size:0.45rem;color:#8b8fa8;margin-bottom:0.3rem;">SALDO TOTALE</div>
+          <div style="font-size:0.9rem;font-weight:700;color:#fff;">€ 42.850</div>
+        </div>
+        <div style="background:#161827;border-radius:6px;padding:0.5rem;flex:2;">
+          <div style="font-size:0.45rem;color:#8b8fa8;margin-bottom:0.3rem;">GRAFICO</div>
+          <div style="height:30px;background:linear-gradient(90deg,#6366f140,#6366f1);border-radius:3px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Sidebar fissa</h3>
+      <p>Navigazione laterale sempre visibile. Ottima su desktop, ogni sezione è una "pagina". Standard fintech.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="topnav" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1e2130;border-radius:8px;padding:1rem;display:flex;flex-direction:column;gap:0.4rem;min-height:140px;">
+      <div style="background:#161827;border-radius:6px;padding:0.4rem 0.6rem;display:flex;align-items:center;gap:0.75rem;">
+        <div style="font-size:0.5rem;color:#6366f1;font-weight:700;">FINTRACK</div>
+        <div style="font-size:0.45rem;color:#ffffff;background:#6366f120;padding:0.2rem 0.4rem;border-radius:4px;">Panoramica</div>
+        <div style="font-size:0.45rem;color:#8b8fa8;">Conti</div>
+        <div style="font-size:0.45rem;color:#8b8fa8;">Investimenti</div>
+        <div style="font-size:0.45rem;color:#8b8fa8;">Spese</div>
+      </div>
+      <div style="display:flex;gap:0.4rem;flex:1;">
+        <div style="flex:1;background:#161827;border-radius:6px;padding:0.5rem;">
+          <div style="font-size:0.45rem;color:#8b8fa8;">SALDO</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#fff;">€ 42.850</div>
+        </div>
+        <div style="flex:1;background:#161827;border-radius:6px;padding:0.5rem;">
+          <div style="font-size:0.45rem;color:#8b8fa8;">ENTRATE</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#22c55e;">€ 3.200</div>
+        </div>
+        <div style="flex:1;background:#161827;border-radius:6px;padding:0.5rem;">
+          <div style="font-size:0.45rem;color:#8b8fa8;">USCITE</div>
+          <div style="font-size:0.8rem;font-weight:700;color:#ef4444;">€ 1.850</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Top navbar</h3>
+      <p>Navigazione orizzontale in cima. Più contenuto visibile. Funziona bene anche su tablet/mobile.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="scroll" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1e2130;border-radius:8px;padding:1rem;display:flex;flex-direction:column;gap:0.3rem;min-height:140px;overflow:hidden;">
+      <div style="background:#6366f1;border-radius:6px;padding:0.5rem;">
+        <div style="font-size:0.5rem;color:#fff;font-weight:700;">📊 PANORAMICA</div>
+        <div style="font-size:0.45rem;color:#c4b5fd;margin-top:0.2rem;">Saldo · Entrate · Uscite</div>
+      </div>
+      <div style="background:#161827;border-radius:6px;padding:0.5rem;">
+        <div style="font-size:0.5rem;color:#8b8fa8;font-weight:600;">💰 DOVE SONO I SOLDI</div>
+      </div>
+      <div style="background:#161827;border-radius:6px;padding:0.5rem;opacity:0.6;">
+        <div style="font-size:0.5rem;color:#8b8fa8;font-weight:600;">📈 INVESTIMENTI</div>
+      </div>
+      <div style="font-size:0.45rem;color:#6366f1;text-align:center;">↓ scroll</div>
+    </div>
+    <div class="card-body">
+      <h3>C — Single page scroll</h3>
+      <p>Tutte le sezioni in una pagina, scroll verticale. Semplice, mobile-first. Meno strutturato su desktop.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem;">Clicca per selezionare, poi rispondi nel terminale.</p>

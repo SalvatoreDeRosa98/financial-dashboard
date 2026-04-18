@@ -1,0 +1,71 @@
+<h2>Quale tema preferisci?</h2>
+<p class="subtitle">Scegli lo stile visivo della dashboard</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="dark" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0f1117; padding:1.25rem; border-radius:8px;">
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+        <div style="flex:1;background:#1e2130;border-radius:8px;padding:0.75rem;">
+          <div style="font-size:0.6rem;color:#8b8fa8;margin-bottom:0.3rem;">SALDO TOTALE</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#ffffff;">€ 42.850</div>
+          <div style="font-size:0.55rem;color:#22c55e;margin-top:0.2rem;">▲ +3.2%</div>
+        </div>
+        <div style="flex:1;background:#1e2130;border-radius:8px;padding:0.75rem;">
+          <div style="font-size:0.6rem;color:#8b8fa8;margin-bottom:0.3rem;">ENTRATE</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#22c55e;">€ 3.200</div>
+        </div>
+      </div>
+      <div style="background:#1e2130;border-radius:8px;padding:0.75rem;">
+        <div style="font-size:0.6rem;color:#8b8fa8;margin-bottom:0.5rem;">PORTAFOGLIO</div>
+        <div style="height:40px;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px;opacity:0.3;position:relative;">
+          <div style="position:absolute;bottom:0;left:0;right:0;height:60%;background:linear-gradient(180deg,transparent,#6366f1);border-radius:4px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Dark — Slate</h3>
+      <p>Sfondo scuro, accenti viola/indigo. Elegante, riduce affaticamento visivo. Stile fintech moderno.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="light" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc; padding:1.25rem; border-radius:8px;">
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;">
+        <div style="flex:1;background:#ffffff;border-radius:8px;padding:0.75rem;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <div style="font-size:0.6rem;color:#94a3b8;margin-bottom:0.3rem;">SALDO TOTALE</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#0f172a;">€ 42.850</div>
+          <div style="font-size:0.55rem;color:#16a34a;margin-top:0.2rem;">▲ +3.2%</div>
+        </div>
+        <div style="flex:1;background:#ffffff;border-radius:8px;padding:0.75rem;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <div style="font-size:0.6rem;color:#94a3b8;margin-bottom:0.3rem;">ENTRATE</div>
+          <div style="font-size:1.1rem;font-weight:700;color:#16a34a;">€ 3.200</div>
+        </div>
+      </div>
+      <div style="background:#ffffff;border-radius:8px;padding:0.75rem;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <div style="font-size:0.6rem;color:#94a3b8;margin-bottom:0.5rem;">PORTAFOGLIO</div>
+        <div style="height:40px;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:4px;opacity:0.25;"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Light — Clean</h3>
+      <p>Sfondo bianco/grigio chiaro, accenti blu. Leggibile, professionale, stile banking tradizionale.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="system" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:linear-gradient(135deg,#0f1117 50%,#f8fafc 50%); padding:1.25rem; border-radius:8px; display:flex; align-items:center; justify-content:center; min-height:120px;">
+      <div style="text-align:center;">
+        <div style="font-size:2rem;">🌗</div>
+        <div style="font-size:0.7rem;color:#94a3b8;margin-top:0.5rem;">Entrambi</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Entrambi — Sistema</h3>
+      <p>Toggle dark/light integrato. Segue le preferenze del sistema operativo. Più lavoro da implementare.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem;">Clicca per selezionare, poi rispondi nel terminale.</p>
