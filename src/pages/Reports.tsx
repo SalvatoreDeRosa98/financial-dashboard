@@ -11,7 +11,6 @@ export function ReportsPage() {
     dividendCoveragePct,
     dividendMonthlyAverageBase,
     exposure,
-    exportFiscalCsv,
     taxCreditExpiring,
     taxCreditRemaining,
   } = useFinanceData()
@@ -110,37 +109,23 @@ export function ReportsPage() {
           )) : <div className="soft-card"><p>Nessuna minus in scadenza entro 12 mesi.</p></div>}
         </div>
         </article>
-
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Esportazione fiscalita</p>
-              <h2>CSV per commercialista</h2>
+              <p className="muted-label">Esposizione valutaria</p>
+              <h2>Distribuzione portfolio</h2>
             </div>
           </div>
-          <textarea className="input textarea report-export" readOnly value={exportFiscalCsv()} />
-          <p className="muted-text">
-            Stima semplificata per supporto operativo. Da verificare per regime dichiarativo, categorie compensabili e quadri RW/RT/RM.
-          </p>
+          <div className="grid mini-grid">
+            {exposure.map((item) => (
+              <div key={item.currency} className="soft-card">
+                <span>{item.currency}</span>
+                <strong>{formatCurrency(item.valueBase, baseCurrency)}</strong>
+                <small>{item.share.toFixed(1)}% del portfolio</small>
+              </div>
+            ))}
+          </div>
         </article>
-      </section>
-
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <p className="muted-label">Esposizione valutaria</p>
-            <h2>Distribuzione portfolio</h2>
-          </div>
-        </div>
-        <div className="grid mini-grid">
-          {exposure.map((item) => (
-            <div key={item.currency} className="soft-card">
-              <span>{item.currency}</span>
-              <strong>{formatCurrency(item.valueBase, baseCurrency)}</strong>
-              <small>{item.share.toFixed(1)}% del portfolio</small>
-            </div>
-          ))}
-        </div>
       </section>
     </div>
   )

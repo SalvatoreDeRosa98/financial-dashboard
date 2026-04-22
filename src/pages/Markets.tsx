@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFinanceData } from '../hooks/useFinanceData'
 import { formatCurrency, formatDateLong, formatSignedPercent } from '../lib/utils'
+import { useDashboardStore } from '../stores/dashboardStore'
 
 type OpportunityPeriod = 'day' | 'week' | 'month' | 'threeMonths' | 'year'
 
@@ -29,17 +30,19 @@ function TradingViewSymbolChart({
     script.type = 'text/javascript'
     script.async = true
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js'
-    script.text = JSON.stringify({
-      symbols: [[title, chartSymbol]],
+    script.innerHTML = JSON.stringify({
+      symbols: [[`${chartSymbol}|1D`]],
       chartOnly: false,
       width: '100%',
-      height: 420,
+      height: '100%',
       locale: 'it',
       colorTheme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
       autosize: true,
       showVolume: false,
       showMA: false,
       hideDateRanges: false,
+      hideMarketStatus: false,
+      hideSymbolLogo: false,
       scalePosition: 'right',
       scaleMode: 'Normal',
       chartType: 'area',
@@ -73,9 +76,18 @@ export function MarketsPage() {
     currency: 'USD' as const,
     notes: '',
   })
-  const [selectedIndexSymbol, setSelectedIndexSymbol] = useState(marketIndices[0]?.symbol ?? '')
-  const [selectedKind, setSelectedKind] = useState<'Stock' | 'ETF'>('Stock')
-  const [selectedPeriod, setSelectedPeriod] = useState<OpportunityPeriod>('month')
+  const selectedIndexSymbol =
+    useDashboardStore((state) => state.selectedIndexSymbol) ?? marketIndices[0]?.symbol ?? ''
+  const setSelectedIndexSymbol = useDashboardStore((state) => state.setSelectedIndexSymbol)
+  const selectedKind = useDashboardStore((state) => state.marketKind)
+  const setSelectedKind = useDashboardStore((state) => state.setMarketKind)
+  const selectedPeriod = useDashboardStore((state) => state.marketPeriod)
+  const setSelectedPeriod = useDashboardStore((state) => state.setMarketPeriod)
+  useEffect(() => {
+    if (!marketIndices.find((item) => item.symbol === selectedIndexSymbol)) {
+      setSelectedIndexSymbol(marketIndices[0]?.symbol ?? '')
+    }
+  }, [marketIndices, selectedIndexSymbol])
 
   const selectedIndex =
     marketIndices.find((item) => item.symbol === selectedIndexSymbol) ?? marketIndices[0] ?? null
@@ -84,7 +96,8 @@ export function MarketsPage() {
     () =>
       [...opportunities]
         .filter((item) => item.kind === selectedKind)
-        .sort((left, right) => right.performance[selectedPeriod] - left.performance[selectedPeriod]),
+        .sort((left, right) => right.performance[selectedPeriod] - left.performance[selectedPeriod])
+        .slice(0, 10),
     [opportunities, selectedKind, selectedPeriod],
   )
 
@@ -176,19 +189,26 @@ export function MarketsPage() {
             </button>
           ))}
         </div>
-        <div className="grid mini-grid">
+        <div className="stack gap-sm">
           {topGainers.map((item, index) => (
-            <article key={item.id} className={`soft-card${index === 0 ? ' highlight-card' : ''}`}>
-              <span>
-                #{index + 1} - {item.region}
-              </span>
-              <strong>
-                {item.symbol} · {item.name}
-              </strong>
-              <div className="large-value">{formatCurrency(item.price, item.currency)}</div>
-              <small className={item.performance[selectedPeriod] >= 0 ? 'positive' : 'negative'}>
-                {formatSignedPercent(item.performance[selectedPeriod])} nel periodo selezionato
-              </small>
+            <article key={item.id} className={`gainer-row${index === 0 ? ' is-top' : ''}`}>
+              <div className="row-inline">
+                <span className="rank-pill">{index + 1}</span>
+                <div className="stack">
+                  <strong>
+                    {item.symbol} · {item.name}
+                  </strong>
+                  <span className="muted-text">
+                    {item.region} · {selectedKind === 'Stock' ? 'Azione' : 'ETF'}
+                  </span>
+                </div>
+              </div>
+              <div className="stack align-end">
+                <strong>{formatCurrency(item.price, item.currency)}</strong>
+                <span className={item.performance[selectedPeriod] >= 0 ? 'positive' : 'negative'}>
+                  {formatSignedPercent(item.performance[selectedPeriod])}
+                </span>
+              </div>
             </article>
           ))}
         </div>

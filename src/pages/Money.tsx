@@ -1,7 +1,59 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useFinanceData } from '../hooks/useFinanceData'
-import { formatCurrency, formatDateLabel, safeNumber } from '../lib/utils'
+import { formatCurrency, formatDateLabel, monthKey, monthLabelFromKey, safeNumber } from '../lib/utils'
+import { useDashboardStore } from '../stores/dashboardStore'
+
+function AccountEditorCard({
+  account,
+  onSave,
+}: {
+  account: {
+    id: string
+    institution: string
+    name: string
+    balance: number
+    currency: string
+  }
+  onSave: (id: string, patch: { institution?: string; name?: string; balance?: number }) => void
+}) {
+  const [institutionDraft, setInstitutionDraft] = useState(account.institution)
+  const [nameDraft, setNameDraft] = useState(account.name)
+  const [balanceDraft, setBalanceDraft] = useState(String(account.balance))
+
+  return (
+    <article className="panel soft-card">
+      <input
+        className="input"
+        value={institutionDraft}
+        onChange={(event) => setInstitutionDraft(event.target.value)}
+        onBlur={() => onSave(account.id, { institution: institutionDraft })}
+      />
+      <input
+        className="input"
+        value={nameDraft}
+        onChange={(event) => setNameDraft(event.target.value)}
+        onBlur={() => onSave(account.id, { name: nameDraft })}
+      />
+      <div className="large-value">{formatCurrency(account.balance, account.currency as never)}</div>
+      <div className="inline-editor">
+        <label htmlFor={`account-${account.id}`}>Saldo attuale</label>
+        <input
+          id={`account-${account.id}`}
+          className="input"
+          value={balanceDraft}
+          type="number"
+          onChange={(event) => setBalanceDraft(event.target.value)}
+          onBlur={() => {
+            const nextBalance = safeNumber(balanceDraft, account.balance)
+            setBalanceDraft(String(nextBalance))
+            onSave(account.id, { balance: nextBalance })
+          }}
+        />
+      </div>
+    </article>
+  )
+}
 
 export function MoneyPage() {
   const {
@@ -11,7 +63,7 @@ export function MoneyPage() {
     budgets,
     cashflowSeries,
     transactions,
-    updateAccountBalance,
+    updateAccount,
     updateBudget,
   } = useFinanceData()
   const [form, setForm] = useState<{
@@ -31,39 +83,39 @@ export function MoneyPage() {
     type: 'expense' as const,
     accountId: accounts[0]?.id ?? '',
   })
+  const monthMap = transactions.reduce<Record<string, { income: number; expenses: number }>>((acc, transaction) => {
+    const key = monthKey(transaction.date)
+    if (!acc[key]) {
+      acc[key] = { income: 0, expenses: 0 }
+    }
+    if (transaction.type === 'income') {
+      acc[key].income += Math.abs(transaction.amount)
+    } else {
+      acc[key].expenses += Math.abs(transaction.amount)
+    }
+    return acc
+  }, {})
+  const monthKeys = Object.keys(monthMap).sort((left, right) => right.localeCompare(left))
+  const selectedMonth = useDashboardStore((state) => state.selectedMoneyMonth) ?? monthKeys[0] ?? monthKey(form.date)
+  const setSelectedMonth = useDashboardStore((state) => state.setSelectedMoneyMonth)
+  const monthTransactions = transactions.filter((item) => monthKey(item.date) === selectedMonth)
+  const monthIncomeTransactions = monthTransactions.filter((item) => item.type === 'income')
+  const monthExpenseTransactions = monthTransactions.filter((item) => item.type === 'expense')
+  const monthSummary = monthMap[selectedMonth] ?? { income: 0, expenses: 0 }
+  const monthPickerValue = useMemo(() => {
+    if (selectedMonth) return selectedMonth
+    return monthKey(form.date)
+  }, [form.date, selectedMonth])
+  const getAccountLabel = (accountId: string) => {
+    const account = accounts.find((item) => item.id === accountId)
+    return account ? `${account.institution} · ${account.name}` : 'Conto non trovato'
+  }
 
   return (
     <div className="stack gap-lg">
       <section className="grid metrics-grid">
         {accounts.map((account) => (
-          <article key={account.id} className="panel soft-card">
-            <div className="row-between">
-              <div className="stack">
-                <p className="muted-label">{account.institution}</p>
-                <strong>{account.name}</strong>
-              </div>
-              <span className="small-pill">{account.editable ? 'Modificabile' : 'Gestito dal portfolio'}</span>
-            </div>
-            <div className="large-value">{formatCurrency(account.balance, account.currency)}</div>
-            {account.editable ? (
-              <div className="inline-editor">
-                <label htmlFor={`account-${account.id}`}>Saldo attuale</label>
-                <input
-                  id={`account-${account.id}`}
-                  className="input"
-                  defaultValue={account.balance}
-                  type="number"
-                  onBlur={(event) =>
-                    updateAccountBalance(account.id, safeNumber(event.target.value, account.balance))
-                  }
-                />
-              </div>
-            ) : (
-              <p className="muted-text">
-                Questo saldo segue il portafoglio e si aggiorna dalla sezione investimenti.
-              </p>
-            )}
-          </article>
+          <AccountEditorCard key={account.id} account={account} onSave={updateAccount} />
         ))}
       </section>
 
@@ -157,7 +209,7 @@ export function MoneyPage() {
               >
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.name}
+                    {account.institution} · {account.name}
                   </option>
                 ))}
               </select>
@@ -191,6 +243,90 @@ export function MoneyPage() {
       </section>
 
       <section className="grid content-grid">
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="muted-label">Analisi avanzata</p>
+              <h2>Rendiconto mensile</h2>
+            </div>
+          </div>
+          <div className="stack gap-sm">
+            <label className="muted-label" htmlFor="month-picker">
+              Scegli il mese
+            </label>
+            <input
+              id="month-picker"
+              className="input"
+              type="month"
+              value={monthPickerValue}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+            />
+          </div>
+          <div className="grid split-grid">
+            <div className="soft-card">
+              <span>Entrate del mese</span>
+              <strong>{formatCurrency(monthSummary.income, baseCurrency)}</strong>
+            </div>
+            <div className="soft-card">
+              <span>Spese del mese</span>
+              <strong>{formatCurrency(monthSummary.expenses, baseCurrency)}</strong>
+            </div>
+          </div>
+          <div className="grid split-grid">
+            <div className="stack gap-sm">
+              <div className="soft-card">
+                <span>Lista entrate</span>
+                <strong>{monthIncomeTransactions.length}</strong>
+                <small>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</small>
+              </div>
+              {monthIncomeTransactions.length ? (
+                monthIncomeTransactions.map((transaction) => (
+                  <div key={transaction.id} className="list-card">
+                    <div className="stack">
+                      <strong>{transaction.title}</strong>
+                      <span className="muted-text">
+                        {transaction.category} - {formatDateLabel(transaction.date)}
+                      </span>
+                      <span className="muted-text">{getAccountLabel(transaction.accountId)}</span>
+                    </div>
+                    <strong className="positive">{formatCurrency(transaction.amount, transaction.currency)}</strong>
+                  </div>
+                ))
+              ) : (
+                <div className="soft-card">
+                  <p className="muted-text">Nessuna entrata registrata in questo mese.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="stack gap-sm">
+              <div className="soft-card">
+                <span>Lista spese</span>
+                <strong>{monthExpenseTransactions.length}</strong>
+                <small>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</small>
+              </div>
+              {monthExpenseTransactions.length ? (
+                monthExpenseTransactions.map((transaction) => (
+                  <div key={transaction.id} className="list-card">
+                    <div className="stack">
+                      <strong>{transaction.title}</strong>
+                      <span className="muted-text">
+                        {transaction.category} - {formatDateLabel(transaction.date)}
+                      </span>
+                      <span className="muted-text">{getAccountLabel(transaction.accountId)}</span>
+                    </div>
+                    <strong className="negative">{formatCurrency(transaction.amount, transaction.currency)}</strong>
+                  </div>
+                ))
+              ) : (
+                <div className="soft-card">
+                  <p className="muted-text">Nessuna spesa registrata in questo mese.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </article>
+
         <article className="panel">
           <div className="panel-heading">
             <div>

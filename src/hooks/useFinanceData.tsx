@@ -6,6 +6,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   currencyColors,
   periodOptions,
@@ -44,6 +45,7 @@ import type {
   WatchlistItem,
 } from '../data/types'
 import { convertWithEuroBaseRates, monthKey, monthLabelFromKey } from '../lib/utils'
+import { getHistoricalFxRate, getLatestFxRates, getMarketSnapshot } from '../services/api'
 
 const STORAGE_KEY = 'fintracker-pro-state-v2'
 
@@ -140,7 +142,7 @@ interface FinanceContextValue extends FinanceState {
   setBaseCurrency: (currency: CurrencyCode) => void
   addTransaction: (input: TransactionDraft) => void
   updateBudget: (id: string, budget: number) => void
-  updateAccountBalance: (id: string, balance: number) => void
+  updateAccount: (id: string, patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance'>>) => void
   addPosition: (input: PositionDraft) => Promise<void>
   updatePositionPrice: (id: string, price: number) => void
   addWatchlistItem: (input: WatchlistDraft) => void
@@ -184,122 +186,45 @@ function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-async function fetchLatestFxRates() {
-  const response = await fetch(
-    'https://api.frankfurter.dev/v1/latest?base=EUR&symbols=USD,GBP,JPY,CHF,CAD',
-  )
-  if (!response.ok) {
-    throw new Error('FX request failed')
-  }
-  const data = (await response.json()) as { date: string; rates: Record<string, number> }
-  return {
-    rates: {
-      EUR: 1,
-      USD: data.rates.USD,
-      GBP: data.rates.GBP,
-      JPY: data.rates.JPY,
-      CHF: data.rates.CHF,
-      CAD: data.rates.CAD,
-    } satisfies FxRateMap,
-    updatedAt: data.date,
-  }
-}
-
-async function fetchHistoricalFxRate(date: string) {
-  const response = await fetch(
-    `https://api.frankfurter.dev/v1/${date}?base=EUR&symbols=USD,GBP,JPY,CHF,CAD`,
-  )
-  if (!response.ok) {
-    throw new Error('Historical FX request failed')
-  }
-  const data = (await response.json()) as { rates: Record<string, number> }
-  return {
-    EUR: 1,
-    USD: data.rates.USD,
-    GBP: data.rates.GBP,
-    JPY: data.rates.JPY,
-    CHF: data.rates.CHF,
-    CAD: data.rates.CAD,
-  } satisfies FxRateMap
-}
-
-async function fetchMarketQuotes(symbols: string[]) {
-  const query = encodeURIComponent(symbols.join(','))
-  const response = await fetch(
-    `https://financialmodelingprep.com/stable/quote?symbol=${query}&apikey=demo`,
-  )
-  if (!response.ok) {
-    throw new Error('Market request failed')
-  }
-  return (await response.json()) as Array<{
-    symbol: string
-    price: number
-    changePercentage?: number
-  }>
-}
-
 export function FinanceDataProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<FinanceState>(readState)
-  const [fxRates, setFxRates] = useState<FxRateMap>(seedFxRates)
-  const [fxUpdatedAt, setFxUpdatedAt] = useState('fallback')
-  const [fxStatus, setFxStatus] = useState<'live' | 'fallback'>('fallback')
-  const [marketIndices, setMarketIndices] = useState<MarketIndex[]>(seedIndices)
-  const [marketStatus, setMarketStatus] = useState<'live' | 'fallback'>('fallback')
   const [newsItems] = useState<NewsItem[]>(seedNews)
-  const [opportunities] = useState<OpportunityItem[]>(seedOpportunities)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
-  const refreshFxRates = async () => {
-    try {
-      const snapshot = await fetchLatestFxRates()
-      setFxRates(snapshot.rates)
-      setFxUpdatedAt(snapshot.updatedAt)
-      setFxStatus('live')
-    } catch {
-      setFxRates(seedFxRates)
-      setFxUpdatedAt('fallback locale')
-      setFxStatus('fallback')
-    }
-  }
+  const marketSymbols = useMemo(
+    () => Array.from(new Set([...seedIndices.map((item) => item.symbol), ...state.watchlist.map((item) => item.symbol)])),
+    [state.watchlist],
+  )
 
-  const refreshMarketData = async () => {
-    try {
-      const symbols = [...seedIndices.map((item) => item.symbol), ...state.watchlist.map((item) => item.symbol)]
-      const quotes = await fetchMarketQuotes(Array.from(new Set(symbols)))
-      const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]))
+  const fxQuery = useQuery({
+    queryKey: ['fx-rates'],
+    queryFn: getLatestFxRates,
+    refetchInterval: 60_000,
+  })
 
-      setMarketIndices((current) =>
-        current.map((item) => {
-          const live = quoteMap.get(item.symbol)
-          return live
-            ? { ...item, price: live.price, change: live.changePercentage ?? item.change }
-            : item
-        }),
-      )
+  const marketQuery = useQuery({
+    queryKey: ['market-snapshot', marketSymbols],
+    queryFn: () => getMarketSnapshot(marketSymbols),
+    refetchInterval: 45_000,
+  })
 
-      setState((current) => ({
-        ...current,
-        watchlist: current.watchlist.map((item) => {
-          const live = quoteMap.get(item.symbol)
-          return live
-            ? { ...item, price: live.price, change: live.changePercentage ?? item.change }
-            : item
-        }),
-      }))
-      setMarketStatus('live')
-    } catch {
-      setMarketIndices(seedIndices)
-      setMarketStatus('fallback')
-    }
-  }
-
-  useEffect(() => {
-    void refreshFxRates()
-    void refreshMarketData()
-  }, [])
+  const fxRates = fxQuery.data?.rates ?? seedFxRates
+  const fxUpdatedAt = fxQuery.data?.updatedAt ?? 'fallback locale'
+  const fxStatus = fxQuery.data?.status ?? 'fallback'
+  const marketIndices = marketQuery.data?.indices ?? seedIndices
+  const marketStatus = marketQuery.data?.status ?? 'fallback'
+  const opportunities = marketQuery.data?.opportunities ?? seedOpportunities
+  const liveWatchlist = useMemo(() => {
+    const quoteMap = new Map((marketQuery.data?.quotes ?? []).map((quote) => [quote.symbol, quote]))
+    return state.watchlist.map((item) => {
+      const live = quoteMap.get(item.symbol)
+      return live ? { ...item, price: live.price, change: live.change } : item
+    })
+  }, [marketQuery.data?.quotes, state.watchlist])
 
   const positionInsights = useMemo<PositionInsight[]>(() => {
     return state.positions.map((position) => {
@@ -563,11 +488,14 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     }))
   }
 
-  const updateAccountBalance = (id: string, balance: number) => {
+  const updateAccount = (
+    id: string,
+    patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance'>>,
+  ) => {
     setState((current) => ({
       ...current,
       accounts: current.accounts.map((account) =>
-        account.id === id && account.editable ? { ...account, balance } : account,
+        account.id === id && account.editable ? { ...account, ...patch } : account,
       ),
     }))
   }
@@ -576,7 +504,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     let purchaseFxRate = 1
     if (input.currency !== state.baseCurrency) {
       try {
-        const historicalRates = await fetchHistoricalFxRate(input.purchaseDate)
+        const historicalRates = await getHistoricalFxRate(input.purchaseDate)
         purchaseFxRate = convertWithEuroBaseRates(1, input.currency, state.baseCurrency, historicalRates)
       } catch {
         purchaseFxRate = convertWithEuroBaseRates(1, input.currency, state.baseCurrency, fxRates)
@@ -714,12 +642,18 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     return [header, ...rows].join('\n')
   }
 
+  const refreshFxRates = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['fx-rates'] })
+  }
+
+  const refreshMarketData = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['market-snapshot'] })
+  }
+
   const resetData = () => {
     setState(defaultState)
-    setFxRates(seedFxRates)
-    setMarketIndices(seedIndices)
-    setFxStatus('fallback')
-    setMarketStatus('fallback')
+    void queryClient.invalidateQueries({ queryKey: ['fx-rates'] })
+    void queryClient.invalidateQueries({ queryKey: ['market-snapshot'] })
   }
 
   const value = useMemo(
@@ -728,12 +662,13 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       supportedCurrencies,
       fxRates,
       fxUpdatedAt,
-      fxSource: fxStatus === 'live' ? 'Frankfurter / ECB' : 'Seed locale',
+      fxSource: fxQuery.data?.source ?? 'Seed locale',
       fxStatus,
       marketIndices,
       marketStatus,
       newsItems,
       opportunities,
+      watchlist: liveWatchlist,
       summaryMetrics,
       cashflowSeries,
       exposure,
@@ -752,7 +687,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       setBaseCurrency,
       addTransaction,
       updateBudget,
-      updateAccountBalance,
+      updateAccount,
       addPosition,
       updatePositionPrice,
       addWatchlistItem,
@@ -774,6 +709,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       marketStatus,
       newsItems,
       opportunities,
+      liveWatchlist,
       summaryMetrics,
       cashflowSeries,
       exposure,

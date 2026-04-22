@@ -9,10 +9,9 @@ interface MobileMenuProps {
 const navItems = [
   { to: '/overview', label: 'Home' },
   { to: '/accounts', label: 'Denaro' },
-  { to: '/investments', label: 'Portfolio' },
+  { to: '/investments', label: 'Strumenti finanziari' },
   { to: '/expenses', label: 'Mercati' },
   { to: '/fx', label: 'Cambio' },
-  { to: '/calendar', label: 'Calendario' },
   { to: '/reports', label: 'Report' },
 ]
 

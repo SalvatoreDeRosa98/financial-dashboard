@@ -9,6 +9,7 @@ import {
   formatSignedPercent,
   safeNumber,
 } from '../lib/utils'
+import { useDashboardStore } from '../stores/dashboardStore'
 
 export function PortfolioPage() {
   const {
@@ -16,18 +17,12 @@ export function PortfolioPage() {
     accounts,
     baseCurrency,
     basePortfolioValue,
-    dividendMonthlyAverageBase,
     hedgingAlert,
     portfolioTimeline,
     positionInsights,
-    simulateSale,
     strategyAlert,
-    strategyTargets,
-    taxCreditRemaining,
-    totalLiquidBase,
     updatePositionNotes,
     updatePositionPrice,
-    updateStrategyTarget,
   } = useFinanceData()
   const [form, setForm] = useState({
     symbol: '',
@@ -42,19 +37,17 @@ export function PortfolioPage() {
     annualDividendPerShare: '',
     thesis: '',
   })
-  const [sale, setSale] = useState({
-    symbol: 'AAPL',
-    quantity: '10',
-    method: 'FIFO' as 'FIFO' | 'LIFO',
-  })
   const brokerAccount = accounts.find((account) => account.id === 'acc-broker')
+  const selectedPositionId = useDashboardStore((state) => state.selectedInstrumentId)
+  const setSelectedPositionId = useDashboardStore((state) => state.setSelectedInstrumentId)
   const totalCostBase = useMemo(
     () => positionInsights.reduce((sum, position) => sum + position.costBase, 0),
     [positionInsights],
   )
   const totalPnlBase = basePortfolioValue - totalCostBase
   const totalPnlPct = totalCostBase > 0 ? (totalPnlBase / totalCostBase) * 100 : 0
-  const salePreview = simulateSale(sale.symbol, safeNumber(sale.quantity, 0), sale.method)
+  const selectedPosition =
+    positionInsights.find((position) => position.id === selectedPositionId) ?? null
 
   return (
     <div className="stack gap-lg">
@@ -82,7 +75,7 @@ export function PortfolioPage() {
           <strong>
             {brokerAccount ? formatCurrency(brokerAccount.balance, brokerAccount.currency) : formatCurrency(0, baseCurrency)}
           </strong>
-          <span className="muted-text">gestito da qui, non da Denaro</span>
+          <span className="muted-text">liquidita dedicata agli investimenti</span>
         </article>
       </section>
 
@@ -120,29 +113,6 @@ export function PortfolioPage() {
                 />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="muted-label">Snapshot portfolio</p>
-              <h2>Numeri rapidi da monitorare</h2>
-            </div>
-          </div>
-          <div className="stack gap-sm">
-            <div className="soft-card">
-              <span>Strumenti in portafoglio</span>
-              <strong>{positionInsights.length}</strong>
-            </div>
-            <div className="soft-card">
-              <span>Dividendi medi mensili</span>
-              <strong>{formatCurrency(dividendMonthlyAverageBase, baseCurrency)}</strong>
-            </div>
-            <div className="soft-card">
-              <span>Liquidita pronta da investire</span>
-              <strong>{formatCurrency(totalLiquidBase, baseCurrency)}</strong>
-            </div>
           </div>
         </article>
       </section>
@@ -227,158 +197,135 @@ export function PortfolioPage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Portfolio tracker</p>
-              <h2>Prezzo di carico, prezzo attuale e resa di ogni strumento</h2>
+              <p className="muted-label">Strumenti investiti</p>
+              <h2>Lista pulita del portafoglio con dettaglio al click</h2>
             </div>
           </div>
           <div className="stack gap-sm">
             {positionInsights.map((position) => (
-              <div key={position.id} className="position-card">
-                <div className="position-top">
-                  <div>
-                    <strong>{position.symbol}</strong>
-                    <span className="muted-text">
-                      {position.name} - {position.assetType} - acquistato il {formatDateLong(position.purchaseDate)}
-                    </span>
-                  </div>
-                  <span className="small-pill">{position.hedged ? 'Hedged' : 'Unhedged'}</span>
+              <button
+                key={position.id}
+                className="position-list-item"
+                onClick={() => setSelectedPositionId(position.id)}
+                type="button"
+              >
+                <div className="stack align-start">
+                  <strong>{position.symbol}</strong>
+                  <span className="muted-text">
+                    {position.name} - {position.assetType}
+                  </span>
                 </div>
-                <div className="grid tri-grid">
-                  <div className="soft-card">
-                    <span>Prezzo di carico</span>
-                    <strong>{formatCurrency(position.buyPrice, position.currency)}</strong>
-                    <small>{position.quantity} quote</small>
-                  </div>
-                  <div className="soft-card">
-                    <span>Prezzo attuale</span>
-                    <strong>{formatCurrency(position.currentPrice, position.currency)}</strong>
-                    <small>aggiorna il prezzo quando vuoi</small>
-                  </div>
-                  <div className="soft-card">
-                    <span>P&amp;L totale</span>
-                    <strong>{formatSignedCurrency(position.pnlBase, baseCurrency)}</strong>
-                    <small>{formatSignedPercent(position.pnlBasePct)}</small>
-                  </div>
+                <div className="stack align-end">
+                  <span className="muted-text">Carico</span>
+                  <strong>{formatCurrency(position.buyPrice, position.currency)}</strong>
                 </div>
-                <div className="grid tri-grid">
-                  <div className="soft-card">
-                    <span>P&amp;L nella valuta originale</span>
-                    <strong>{formatSignedCurrency(position.pnlOriginal, position.currency)}</strong>
-                    <small>{formatSignedPercent(position.pnlOriginalPct)}</small>
-                  </div>
-                  <div className="soft-card">
-                    <span>Valore attuale</span>
-                    <strong>{formatCurrency(position.marketValueBase, baseCurrency)}</strong>
-                    <small>
-                      {formatCurrency(position.marketValueOriginal, position.currency)} nella valuta strumento
-                    </small>
-                  </div>
-                  <div className="soft-card">
-                    <span>Effetto cambio</span>
-                    <strong>{formatSignedCurrency(position.fxImpactBase, baseCurrency)}</strong>
-                    <small>
-                      fx acquisto {position.purchaseFxRate.toFixed(4)} / oggi {position.currentFxRate.toFixed(4)}
-                    </small>
-                  </div>
+                <div className="stack align-end">
+                  <span className="muted-text">Oggi</span>
+                  <strong>{formatCurrency(position.currentPrice, position.currency)}</strong>
                 </div>
-                <div className="position-bottom">
-                  <span>Acquistato il {formatDateLong(position.purchaseDate)}</span>
-                  <div className="row-inline">
-                    <input
-                      className="input input-small"
-                      defaultValue={position.currentPrice}
-                      onBlur={(event) => updatePositionPrice(position.id, safeNumber(event.target.value, position.currentPrice))}
-                    />
-                  </div>
+                <div className="stack align-end">
+                  <span className="muted-text">Valore</span>
+                  <strong>{formatCurrency(position.marketValueBase, baseCurrency)}</strong>
                 </div>
-                <textarea
-                  className="input textarea"
-                  defaultValue={position.thesis ?? ''}
-                  onBlur={(event) => updatePositionNotes(position.id, event.target.value)}
-                />
-              </div>
+                <div className="stack align-end">
+                  <span className="muted-text">P&amp;L</span>
+                  <strong className={position.pnlBase >= 0 ? 'positive' : 'negative'}>
+                    {formatSignedCurrency(position.pnlBase, baseCurrency)}
+                  </strong>
+                </div>
+              </button>
             ))}
           </div>
         </article>
       </section>
 
-      <section className="grid content-grid">
-        <article className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="muted-label">Simulatore capital gain</p>
-              <h2>FIFO / LIFO</h2>
-            </div>
-          </div>
-          <div className="stack gap-sm">
-            <select className="input" value={sale.symbol} onChange={(event) => setSale((current) => ({ ...current, symbol: event.target.value }))}>
-              {Array.from(new Set(positionInsights.map((item) => item.symbol))).map((symbol) => (
-                <option key={symbol} value={symbol}>
-                  {symbol}
-                </option>
-              ))}
-            </select>
-            <input className="input" value={sale.quantity} onChange={(event) => setSale((current) => ({ ...current, quantity: event.target.value }))} />
-            <select className="input" value={sale.method} onChange={(event) => setSale((current) => ({ ...current, method: event.target.value as 'FIFO' | 'LIFO' }))}>
-              <option value="FIFO">FIFO</option>
-              <option value="LIFO">LIFO</option>
-            </select>
-            {salePreview ? (
-              <div className="stack gap-sm">
-                <div className="soft-card">
-                  <strong>Gain stimato: {formatCurrency(salePreview.gainBase, baseCurrency)}</strong>
-                  <p className="muted-text">
-                    Imposta stimata {formatCurrency(salePreview.estimatedTax, baseCurrency)} al 26%, compensando fino a {formatCurrency(taxCreditRemaining, baseCurrency)} di minus disponibili.
-                  </p>
-                </div>
-                {salePreview.lots.map((lot) => (
-                  <div key={`${lot.positionId}-${lot.quantity}`} className="soft-card">
-                    <strong>{lot.symbol} - {lot.quantity} quote</strong>
-                    <p className="muted-text">
-                      costo {lot.unitCost} / gain {formatCurrency(lot.gainBase, baseCurrency)}
-                    </p>
-                  </div>
-                ))}
+      {selectedPosition ? (
+        <div className="modal-backdrop" onClick={() => setSelectedPositionId(null)} role="presentation">
+          <div className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="panel-heading">
+              <div>
+                <p className="muted-label">Dettaglio strumento</p>
+                <h2>
+                  {selectedPosition.symbol} · {selectedPosition.name}
+                </h2>
               </div>
-            ) : null}
-          </div>
-        </article>
-
-        <article className="panel span-two">
-          <div className="panel-heading">
-            <div>
-              <p className="muted-label">Strategia target</p>
-              <h2>Alert deviazione portafoglio</h2>
+              <button className="ghost-button" onClick={() => setSelectedPositionId(null)} type="button">
+                Chiudi
+              </button>
+            </div>
+            <div className="grid tri-grid">
+              <div className="soft-card">
+                <span>Prezzo di carico</span>
+                <strong>{formatCurrency(selectedPosition.buyPrice, selectedPosition.currency)}</strong>
+                <small>{selectedPosition.quantity} quote</small>
+              </div>
+              <div className="soft-card">
+                <span>Prezzo attuale</span>
+                <strong>{formatCurrency(selectedPosition.currentPrice, selectedPosition.currency)}</strong>
+                <small>ultimo valore inserito</small>
+              </div>
+              <div className="soft-card">
+                <span>P&amp;L totale</span>
+                <strong>{formatSignedCurrency(selectedPosition.pnlBase, baseCurrency)}</strong>
+                <small>{formatSignedPercent(selectedPosition.pnlBasePct)}</small>
+              </div>
+              <div className="soft-card">
+                <span>P&amp;L valuta originale</span>
+                <strong>{formatSignedCurrency(selectedPosition.pnlOriginal, selectedPosition.currency)}</strong>
+                <small>{formatSignedPercent(selectedPosition.pnlOriginalPct)}</small>
+              </div>
+              <div className="soft-card">
+                <span>Valore attuale</span>
+                <strong>{formatCurrency(selectedPosition.marketValueBase, baseCurrency)}</strong>
+                <small>{formatCurrency(selectedPosition.marketValueOriginal, selectedPosition.currency)}</small>
+              </div>
+              <div className="soft-card">
+                <span>Effetto cambio</span>
+                <strong>{formatSignedCurrency(selectedPosition.fxImpactBase, baseCurrency)}</strong>
+                <small>
+                  fx acquisto {selectedPosition.purchaseFxRate.toFixed(4)} / oggi {selectedPosition.currentFxRate.toFixed(4)}
+                </small>
+              </div>
+            </div>
+            <div className="grid split-grid">
+              <div className="stack gap-sm">
+                <label className="muted-label" htmlFor="current-price-modal">
+                  Aggiorna prezzo corrente
+                </label>
+                <input
+                  id="current-price-modal"
+                  className="input"
+                  defaultValue={selectedPosition.currentPrice}
+                  onBlur={(event) =>
+                    updatePositionPrice(
+                      selectedPosition.id,
+                      safeNumber(event.target.value, selectedPosition.currentPrice),
+                    )
+                  }
+                />
+              </div>
+              <div className="stack gap-sm">
+                <label className="muted-label">Data acquisto</label>
+                <div className="soft-card">
+                  <strong>{formatDateLong(selectedPosition.purchaseDate)}</strong>
+                  <small>{selectedPosition.hedged ? 'Strumento hedged' : 'Strumento non hedged'}</small>
+                </div>
+              </div>
+            </div>
+            <div className="stack gap-sm">
+              <label className="muted-label" htmlFor="notes-modal">
+                Note / tesi di investimento
+              </label>
+              <textarea
+                id="notes-modal"
+                className="input textarea"
+                defaultValue={selectedPosition.thesis ?? ''}
+                onBlur={(event) => updatePositionNotes(selectedPosition.id, event.target.value)}
+              />
             </div>
           </div>
-          <div className="grid tri-grid">
-            {strategyTargets.map((target) => {
-              const actual =
-                positionInsights
-                  .filter((item) => item.assetType === target.assetType)
-                  .reduce((sum, item) => sum + item.marketValueBase, 0) /
-                Math.max(
-                  positionInsights.reduce((sum, item) => sum + item.marketValueBase, 0),
-                  1,
-                ) *
-                100
-
-              return (
-                <div key={target.assetType} className="soft-card">
-                  <strong>{target.assetType}</strong>
-                  <p className="muted-text">Target {target.targetPct}% / Attuale {actual.toFixed(1)}%</p>
-                  <input
-                    className="input"
-                    defaultValue={target.targetPct}
-                    type="number"
-                    onBlur={(event) => updateStrategyTarget(target.assetType, safeNumber(event.target.value, target.targetPct))}
-                  />
-                </div>
-              )
-            })}
-          </div>
-        </article>
-      </section>
+        </div>
+      ) : null}
     </div>
   )
 }

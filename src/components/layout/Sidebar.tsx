@@ -4,11 +4,10 @@ import { ThemeToggle } from './ThemeToggle'
 const navItems = [
   { to: '/overview', label: 'Home', icon: '01' },
   { to: '/accounts', label: 'Denaro', icon: '02' },
-  { to: '/investments', label: 'Portfolio', icon: '03' },
+  { to: '/investments', label: 'Strumenti finanziari', icon: '03' },
   { to: '/expenses', label: 'Mercati', icon: '04' },
   { to: '/fx', label: 'Cambio', icon: '05' },
-  { to: '/calendar', label: 'Calendario', icon: '06' },
-  { to: '/reports', label: 'Report', icon: '07' },
+  { to: '/reports', label: 'Report', icon: '06' },
 ]
 
 export function Sidebar() {
