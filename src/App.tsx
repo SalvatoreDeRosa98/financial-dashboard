@@ -26,7 +26,7 @@ function AppContent() {
   const { completeOnboarding, isHydrated, userName } = useFinanceData()
 
   if (!isHydrated) {
-    return <div className="route-loading">Caricamento dati dal database...</div>
+    return <div className="route-loading">Caricamento dati...</div>
   }
 
   if (!userName) {

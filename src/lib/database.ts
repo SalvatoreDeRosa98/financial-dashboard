@@ -1,4 +1,4 @@
-import { defaultFinanceState, emptyFinanceState, type FinanceState } from '../data/state'
+import { createStarterFinanceState, defaultFinanceState, type FinanceState } from '../data/state'
 
 const DB_NAME = 'financial-dashboard-db'
 const DB_VERSION = 1
@@ -93,16 +93,37 @@ function replaceStore<Item>(transaction: IDBTransaction, storeName: DataStoreNam
   }
 }
 
-function buildStateFromLegacyStorage(rawState: string | null, userName: string) {
+function buildStateFromLegacyStorage(rawState: string | null) {
   if (!rawState) {
-    return userName ? emptyFinanceState : defaultFinanceState
+    return createStarterFinanceState()
   }
 
   try {
-    return { ...defaultFinanceState, ...JSON.parse(rawState) } as FinanceState
+    return { ...createStarterFinanceState(), ...JSON.parse(rawState) } as FinanceState
   } catch {
-    return userName ? emptyFinanceState : defaultFinanceState
+    return createStarterFinanceState()
   }
+}
+
+function isStateEqual(left: FinanceState, right: FinanceState) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function shouldUseStarterState(state: FinanceState) {
+  const hasNoUserData =
+    state.transactions.length === 0 &&
+    state.positions.length === 0 &&
+    state.watchlist.length === 0 &&
+    state.calendarItems.length === 0 &&
+    state.taxCredits.length === 0
+
+  const hasNoOperationalScaffold = state.accounts.length === 0 && state.budgets.length === 0
+
+  return isStateEqual(state, defaultFinanceState) || (hasNoUserData && hasNoOperationalScaffold)
+}
+
+function normalizeBootstrapState(state: FinanceState) {
+  return shouldUseStarterState(state) ? createStarterFinanceState(state.baseCurrency) : state
 }
 
 function clearLegacyStorage() {
@@ -216,17 +237,26 @@ export async function saveUserName(userName: string) {
 
 export async function bootstrapFinanceState(): Promise<BootstrapPayload> {
   if (typeof window === 'undefined') {
-    return { state: defaultFinanceState, userName: '' }
+    return { state: createStarterFinanceState(), userName: '' }
   }
 
   const storedData = await readStoredData()
   if (storedData) {
-    return storedData
+    const normalizedState = normalizeBootstrapState(storedData.state)
+
+    if (!isStateEqual(normalizedState, storedData.state)) {
+      await saveFinanceState(normalizedState)
+    }
+
+    return {
+      state: normalizedState,
+      userName: storedData.userName,
+    }
   }
 
   const legacyUserName = window.localStorage.getItem(LEGACY_USER_NAME_KEY) ?? ''
   const legacyState = window.localStorage.getItem(LEGACY_STATE_KEY)
-  const initialState = buildStateFromLegacyStorage(legacyState, legacyUserName)
+  const initialState = normalizeBootstrapState(buildStateFromLegacyStorage(legacyState))
   const payload = {
     state: initialState,
     userName: legacyUserName,

@@ -32,16 +32,57 @@ export interface FinanceState {
   strategyTargets: StrategyTarget[]
 }
 
-export const emptyFinanceState: FinanceState = {
-  baseCurrency: 'EUR',
-  accounts: [],
-  budgets: [],
-  transactions: [],
-  positions: [],
-  watchlist: [],
-  calendarItems: [],
-  taxCredits: [],
-  strategyTargets: [],
+export function createEmptyFinanceState(baseCurrency: CurrencyCode = 'EUR'): FinanceState {
+  return {
+    baseCurrency,
+    accounts: [],
+    budgets: [],
+    transactions: [],
+    positions: [],
+    watchlist: [],
+    calendarItems: [],
+    taxCredits: [],
+    strategyTargets: [],
+  }
+}
+
+export const emptyFinanceState: FinanceState = createEmptyFinanceState()
+
+export function createStarterFinanceState(baseCurrency: CurrencyCode = 'EUR'): FinanceState {
+  return {
+    baseCurrency,
+    accounts: [
+      {
+        id: 'acc-main',
+        name: 'Conto principale',
+        institution: 'Da configurare',
+        balance: 0,
+        currency: baseCurrency,
+        tone: 'teal',
+        editable: true,
+      },
+      {
+        id: 'acc-broker',
+        name: 'Broker',
+        institution: 'Da configurare',
+        balance: 0,
+        currency: baseCurrency,
+        tone: 'blue',
+        editable: true,
+      },
+    ],
+    budgets: seedBudgets.map((budget) => ({
+      ...budget,
+      spent: 0,
+      budget: 0,
+    })),
+    transactions: [],
+    positions: [],
+    watchlist: [],
+    calendarItems: [],
+    taxCredits: [],
+    strategyTargets: seedStrategyTargets.map((target) => ({ ...target })),
+  }
 }
 
 export const defaultFinanceState: FinanceState = {

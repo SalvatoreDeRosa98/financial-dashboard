@@ -228,16 +228,23 @@ export function MoneyPage() {
             </div>
           </div>
           <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cashflowSeries}>
-                <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} />
-                <Tooltip formatter={(value) => formatCurrency(Number(value), baseCurrency)} />
-                <Bar dataKey="income" fill="#10b981" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="expenses" fill="#f97316" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {cashflowSeries.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cashflowSeries}>
+                  <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value), baseCurrency)} />
+                  <Bar dataKey="income" fill="#10b981" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="expenses" fill="#f97316" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="empty-state">
+                <strong>Nessun mese registrato</strong>
+                <p>Il cashflow verra costruito dal primo movimento inserito.</p>
+              </div>
+            )}
           </div>
         </article>
       </section>
@@ -336,7 +343,7 @@ export function MoneyPage() {
           </div>
           <div className="stack gap-md">
             {budgets.map((budget) => {
-              const progress = Math.min((budget.spent / budget.budget) * 100, 100)
+              const progress = budget.budget > 0 ? Math.min((budget.spent / budget.budget) * 100, 100) : 0
               return (
                 <div key={budget.id} className="stack gap-sm">
                   <div className="row-between">
@@ -368,19 +375,26 @@ export function MoneyPage() {
             </div>
           </div>
           <div className="stack gap-sm">
-            {transactions.slice(0, 8).map((transaction) => (
-              <div key={transaction.id} className="list-card">
-                <div className="stack">
-                  <strong>{transaction.title}</strong>
-                  <span className="muted-text">
-                    {transaction.category} - {formatDateLabel(transaction.date)}
-                  </span>
+            {transactions.length ? (
+              transactions.slice(0, 8).map((transaction) => (
+                <div key={transaction.id} className="list-card">
+                  <div className="stack">
+                    <strong>{transaction.title}</strong>
+                    <span className="muted-text">
+                      {transaction.category} - {formatDateLabel(transaction.date)}
+                    </span>
+                  </div>
+                  <strong className={transaction.type === 'income' ? 'positive' : 'negative'}>
+                    {formatCurrency(transaction.amount, transaction.currency)}
+                  </strong>
                 </div>
-                <strong className={transaction.type === 'income' ? 'positive' : 'negative'}>
-                  {formatCurrency(transaction.amount, transaction.currency)}
-                </strong>
+              ))
+            ) : (
+              <div className="empty-state">
+                <strong>Storico vuoto</strong>
+                <p>I movimenti recenti appariranno qui dopo il primo inserimento.</p>
               </div>
-            ))}
+            )}
           </div>
         </article>
       </section>

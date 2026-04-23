@@ -18,8 +18,7 @@ import {
   supportedCurrencies,
 } from '../data/seed'
 import {
-  defaultFinanceState,
-  emptyFinanceState,
+  createStarterFinanceState,
   type FinanceState,
 } from '../data/state'
 import type {
@@ -162,7 +161,7 @@ function createId(prefix: string) {
 }
 
 export function FinanceDataProvider({ children }: PropsWithChildren) {
-  const [state, setState] = useState<FinanceState>(defaultFinanceState)
+  const [state, setState] = useState<FinanceState>(() => createStarterFinanceState())
   const [userName, setUserNameState] = useState('')
   const [isHydrated, setIsHydrated] = useState(false)
   const [newsItems] = useState<NewsItem[]>(seedNews)
@@ -181,7 +180,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       } catch {
         if (!isMounted) return
 
-        setState(defaultFinanceState)
+        setState(createStarterFinanceState())
         setUserNameState('')
       } finally {
         if (isMounted) {
@@ -320,6 +319,10 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   const summaryMetrics = useMemo<SummaryMetric[]>(() => {
     const currentMonth = new Date().getMonth()
     const currentYear = new Date().getFullYear()
+    const hasTrackedData =
+      state.transactions.length > 0 ||
+      state.positions.length > 0 ||
+      state.accounts.some((account) => account.balance !== 0)
     const currentMonthTransactions = state.transactions.filter((item) => {
       const date = new Date(item.date)
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear
@@ -346,43 +349,32 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       {
         label: 'Patrimonio totale',
         value: totalLiquidBase + basePortfolioValue,
-        change: 4.2,
+        change: hasTrackedData ? 4.2 : 0,
         accent: 'teal',
       },
       {
         label: 'Liquidita disponibile',
         value: totalLiquidBase,
-        change: 2.1,
+        change: hasTrackedData ? 2.1 : 0,
         accent: 'blue',
       },
       {
         label: 'Portafoglio investito',
         value: basePortfolioValue,
-        change: 7.1,
+        change: hasTrackedData ? 7.1 : 0,
         accent: 'violet',
       },
       {
         label: 'Crescita mensile',
         value: income - expenses,
-        change: 2.8,
+        change: hasTrackedData ? 2.8 : 0,
         accent: 'amber',
       },
     ]
-  }, [basePortfolioValue, fxRates, state.baseCurrency, state.transactions, totalLiquidBase])
+  }, [basePortfolioValue, fxRates, state.accounts, state.baseCurrency, state.positions, state.transactions, totalLiquidBase])
 
   const cashflowSeries = useMemo<CashflowPoint[]>(() => {
-    const seedKeys = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']
-    const grouped = new Map(
-      seedKeys.map((key, index) => [
-        key,
-        {
-          month: monthLabelFromKey(key),
-          income: 2200 + index * 110,
-          expenses: 1800 + index * 60,
-          netWorth: 162000 + index * 4300,
-        },
-      ]),
-    )
+    const grouped = new Map<string, CashflowPoint>()
 
     for (const transaction of state.transactions) {
       const key = monthKey(transaction.date)
@@ -408,6 +400,10 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       grouped.set(key, current)
     }
 
+    if (!grouped.size) {
+      return []
+    }
+
     return Array.from(grouped.entries())
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([, value], index, all) => ({
@@ -418,13 +414,20 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   }, [fxRates, state.baseCurrency, state.transactions, summaryMetrics])
 
   const portfolioTimeline = useMemo(() => {
-    const currentTotal = basePortfolioValue
+    const grouped = new Map<string, number>()
 
-    return ['Nov', 'Dic', 'Gen', 'Feb', 'Mar', 'Apr'].map((month, index, all) => ({
-      month,
-      total: currentTotal - (all.length - index - 1) * 1800,
-    }))
-  }, [basePortfolioValue])
+    for (const position of positionInsights) {
+      const key = monthKey(position.purchaseDate)
+      grouped.set(key, (grouped.get(key) ?? 0) + position.marketValueBase)
+    }
+
+    return Array.from(grouped.entries())
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, total]) => ({
+        month: monthLabelFromKey(key),
+        total,
+      }))
+  }, [positionInsights])
 
   const hedgingAlert = useMemo(() => {
     const usdShare = exposure.find((item) => item.currency === 'USD')?.share ?? 0
@@ -499,7 +502,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   }
 
   const completeOnboarding = (name: string) => {
-    setState(emptyFinanceState)
+    setState(createStarterFinanceState())
     setUserNameState(name)
   }
 
@@ -725,7 +728,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   }
 
   const resetData = () => {
-    setState(defaultFinanceState)
+    setState(createStarterFinanceState())
     void queryClient.invalidateQueries({ queryKey: ['fx-rates'] })
     void queryClient.invalidateQueries({ queryKey: ['market-snapshot'] })
   }

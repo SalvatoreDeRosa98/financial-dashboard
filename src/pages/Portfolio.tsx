@@ -88,31 +88,38 @@ export function PortfolioPage() {
             </div>
           </div>
           <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={portfolioTimeline}>
-                <defs>
-                  <linearGradient id="portfolio-area" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.04} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => formatCompactCurrency(Number(value), baseCurrency)}
-                />
-                <Tooltip formatter={(value) => formatCurrency(Number(value), baseCurrency)} />
-                <Area
-                  type="monotone"
-                  dataKey="total"
-                  stroke="#8b5cf6"
-                  strokeWidth={3}
-                  fill="url(#portfolio-area)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {portfolioTimeline.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={portfolioTimeline}>
+                  <defs>
+                    <linearGradient id="portfolio-area" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.04} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => formatCompactCurrency(Number(value), baseCurrency)}
+                  />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value), baseCurrency)} />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#8b5cf6"
+                    strokeWidth={3}
+                    fill="url(#portfolio-area)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="empty-state">
+                <strong>Nessuna posizione registrata</strong>
+                <p>La cronologia del portafoglio partira dal primo strumento inserito.</p>
+              </div>
+            )}
           </div>
         </article>
       </section>
@@ -202,39 +209,46 @@ export function PortfolioPage() {
             </div>
           </div>
           <div className="stack gap-sm">
-            {positionInsights.map((position) => (
-              <button
-                key={position.id}
-                className="position-list-item"
-                onClick={() => setSelectedPositionId(position.id)}
-                type="button"
-              >
-                <div className="stack align-start">
-                  <strong>{position.symbol}</strong>
-                  <span className="muted-text">
-                    {position.name} - {position.assetType}
-                  </span>
-                </div>
-                <div className="stack align-end">
-                  <span className="muted-text">Carico</span>
-                  <strong>{formatCurrency(position.buyPrice, position.currency)}</strong>
-                </div>
-                <div className="stack align-end">
-                  <span className="muted-text">Oggi</span>
-                  <strong>{formatCurrency(position.currentPrice, position.currency)}</strong>
-                </div>
-                <div className="stack align-end">
-                  <span className="muted-text">Valore</span>
-                  <strong>{formatCurrency(position.marketValueBase, baseCurrency)}</strong>
-                </div>
-                <div className="stack align-end">
-                  <span className="muted-text">P&amp;L</span>
-                  <strong className={position.pnlBase >= 0 ? 'positive' : 'negative'}>
-                    {formatSignedCurrency(position.pnlBase, baseCurrency)}
-                  </strong>
-                </div>
-              </button>
-            ))}
+            {positionInsights.length ? (
+              positionInsights.map((position) => (
+                <button
+                  key={position.id}
+                  className="position-list-item"
+                  onClick={() => setSelectedPositionId(position.id)}
+                  type="button"
+                >
+                  <div className="stack align-start">
+                    <strong>{position.symbol}</strong>
+                    <span className="muted-text">
+                      {position.name} - {position.assetType}
+                    </span>
+                  </div>
+                  <div className="stack align-end">
+                    <span className="muted-text">Carico</span>
+                    <strong>{formatCurrency(position.buyPrice, position.currency)}</strong>
+                  </div>
+                  <div className="stack align-end">
+                    <span className="muted-text">Oggi</span>
+                    <strong>{formatCurrency(position.currentPrice, position.currency)}</strong>
+                  </div>
+                  <div className="stack align-end">
+                    <span className="muted-text">Valore</span>
+                    <strong>{formatCurrency(position.marketValueBase, baseCurrency)}</strong>
+                  </div>
+                  <div className="stack align-end">
+                    <span className="muted-text">P&amp;L</span>
+                    <strong className={position.pnlBase >= 0 ? 'positive' : 'negative'}>
+                      {formatSignedCurrency(position.pnlBase, baseCurrency)}
+                    </strong>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="empty-state">
+                <strong>Portafoglio ancora vuoto</strong>
+                <p>Le posizioni appariranno qui quando aggiungerai il primo strumento.</p>
+              </div>
+            )}
           </div>
         </article>
       </section>

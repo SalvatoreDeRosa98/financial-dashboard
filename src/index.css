@@ -890,6 +890,28 @@ h2 {
   font-size: 0.9rem;
 }
 
+.empty-state {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 8px;
+  min-height: 100%;
+  padding: 22px;
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.empty-state strong,
+.empty-state p {
+  margin: 0;
+}
+
+.empty-state p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .metric-card.metric-amber strong {
   color: var(--warning);
 }

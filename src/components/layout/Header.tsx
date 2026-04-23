@@ -22,10 +22,6 @@ export function Header({ title, subtitle, onOpenMenu }: HeaderProps) {
         <p className="subtitle">{subtitle}</p>
       </div>
       <div className="header-meta">
-        <div className="pill">
-          <span className="status-dot" />
-          Database locale attivo
-        </div>
         <div className="date-label">{date}</div>
       </div>
     </header>
