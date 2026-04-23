@@ -87,7 +87,7 @@ export function MarketsPage() {
     if (!marketIndices.find((item) => item.symbol === selectedIndexSymbol)) {
       setSelectedIndexSymbol(marketIndices[0]?.symbol ?? '')
     }
-  }, [marketIndices, selectedIndexSymbol])
+  }, [marketIndices, selectedIndexSymbol, setSelectedIndexSymbol])
 
   const selectedIndex =
     marketIndices.find((item) => item.symbol === selectedIndexSymbol) ?? marketIndices[0] ?? null
@@ -107,7 +107,7 @@ export function MarketsPage() {
         <div className="panel-heading">
           <div>
             <p className="muted-label">Indici globali</p>
-            <h2>{marketStatus === 'live' ? 'Aggiornamento live' : 'Fallback seed'}</h2>
+            <h2>{marketStatus === 'live' ? 'Dati aggiornati' : 'Dati seed locali'}</h2>
           </div>
           <button className="ghost-button" onClick={() => void refreshMarketData()} type="button">
             Aggiorna
@@ -136,7 +136,7 @@ export function MarketsPage() {
         <section className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Grafico indice selezionato</p>
+              <p className="muted-label">Indice selezionato</p>
               <h2>{selectedIndex.name}</h2>
             </div>
             <a
@@ -155,8 +155,8 @@ export function MarketsPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <p className="muted-label">Top gainer globali</p>
-            <h2>Scouting operativo tra azioni ed ETF</h2>
+            <p className="muted-label">Screening</p>
+            <h2>Migliori performance per periodo</h2>
           </div>
         </div>
         <div className="tab-row">
@@ -219,7 +219,7 @@ export function MarketsPage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Nuova watchlist</p>
-              <h2>Titoli da seguire</h2>
+              <h2>Aggiungi uno strumento da monitorare</h2>
             </div>
           </div>
           <form
@@ -275,8 +275,8 @@ export function MarketsPage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Watchlist personale</p>
-              <h2>Variazioni in evidenza</h2>
+              <p className="muted-label">Watchlist</p>
+              <h2>Strumenti monitorati</h2>
             </div>
           </div>
           <div className="stack gap-sm">
@@ -304,8 +304,8 @@ export function MarketsPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <p className="muted-label">News finanziarie</p>
-            <h2>Brief quotidiano</h2>
+            <p className="muted-label">News</p>
+            <h2>Selezione notizie</h2>
           </div>
         </div>
         <div className="grid mini-grid">

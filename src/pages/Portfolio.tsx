@@ -63,7 +63,7 @@ export function PortfolioPage() {
         <article className="panel metric-card metric-blue">
           <p className="muted-label">Capitale investito</p>
           <strong>{formatCurrency(totalCostBase, baseCurrency)}</strong>
-          <span className="muted-text">prezzo medio di carico aggregato</span>
+          <span className="muted-text">costo storico aggregato</span>
         </article>
         <article className="panel metric-card metric-teal">
           <p className="muted-label">P&amp;L totale</p>
@@ -75,7 +75,7 @@ export function PortfolioPage() {
           <strong>
             {brokerAccount ? formatCurrency(brokerAccount.balance, brokerAccount.currency) : formatCurrency(0, baseCurrency)}
           </strong>
-          <span className="muted-text">liquidita dedicata agli investimenti</span>
+          <span className="muted-text">liquidita disponibile per operazioni</span>
         </article>
       </section>
 
@@ -83,8 +83,8 @@ export function PortfolioPage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Andamento complessivo</p>
-              <h2>Quanto valgono oggi tutti gli strumenti acquistati</h2>
+              <p className="muted-label">Storico portafoglio</p>
+              <h2>Valore complessivo delle posizioni</h2>
             </div>
           </div>
           <div className="chart-wrap">
@@ -122,7 +122,7 @@ export function PortfolioPage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Nuova posizione</p>
-              <h2>Portafoglio multi-currency</h2>
+              <h2>Inserisci una nuova posizione</h2>
             </div>
           </div>
           <form
@@ -183,10 +183,10 @@ export function PortfolioPage() {
               <input className="input" type="date" value={form.purchaseDate} onChange={(event) => setForm((current) => ({ ...current, purchaseDate: event.target.value }))} />
             </div>
             <input className="input" placeholder="Dividendo annuo per quota" value={form.annualDividendPerShare} onChange={(event) => setForm((current) => ({ ...current, annualDividendPerShare: event.target.value }))} />
-            <textarea className="input textarea" placeholder="Tesi di investimento / note anti-FOMO" value={form.thesis} onChange={(event) => setForm((current) => ({ ...current, thesis: event.target.value }))} />
+            <textarea className="input textarea" placeholder="Tesi di investimento o note operative" value={form.thesis} onChange={(event) => setForm((current) => ({ ...current, thesis: event.target.value }))} />
             <label className="checkbox-row">
               <input type="checkbox" checked={form.hedged} onChange={(event) => setForm((current) => ({ ...current, hedged: event.target.checked }))} />
-              ETF o strumento hedged
+              Strumento coperto dal rischio cambio
             </label>
             <button className="primary-button" type="submit">
               Aggiungi posizione
@@ -197,8 +197,8 @@ export function PortfolioPage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Strumenti investiti</p>
-              <h2>Lista pulita del portafoglio con dettaglio al click</h2>
+              <p className="muted-label">Posizioni aperte</p>
+              <h2>Dettaglio strumenti in portafoglio</h2>
             </div>
           </div>
           <div className="stack gap-sm">
@@ -262,7 +262,7 @@ export function PortfolioPage() {
               <div className="soft-card">
                 <span>Prezzo attuale</span>
                 <strong>{formatCurrency(selectedPosition.currentPrice, selectedPosition.currency)}</strong>
-                <small>ultimo valore inserito</small>
+                <small>ultimo prezzo registrato</small>
               </div>
               <div className="soft-card">
                 <span>P&amp;L totale</span>
@@ -308,13 +308,13 @@ export function PortfolioPage() {
                 <label className="muted-label">Data acquisto</label>
                 <div className="soft-card">
                   <strong>{formatDateLong(selectedPosition.purchaseDate)}</strong>
-                  <small>{selectedPosition.hedged ? 'Strumento hedged' : 'Strumento non hedged'}</small>
+                  <small>{selectedPosition.hedged ? 'Copertura cambio attiva' : 'Copertura cambio non attiva'}</small>
                 </div>
               </div>
             </div>
             <div className="stack gap-sm">
               <label className="muted-label" htmlFor="notes-modal">
-                Note / tesi di investimento
+                Tesi di investimento
               </label>
               <textarea
                 id="notes-modal"

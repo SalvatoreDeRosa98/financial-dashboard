@@ -3,8 +3,17 @@ import { useFinanceData } from '../hooks/useFinanceData'
 import { convertWithEuroBaseRates, formatCurrency, safeNumber } from '../lib/utils'
 
 export function FXPage() {
-  const { baseCurrency, fxRates, fxSource, fxStatus, fxUpdatedAt, positionInsights, refreshFxRates, setBaseCurrency, supportedCurrencies } =
-    useFinanceData()
+  const {
+    baseCurrency,
+    fxRates,
+    fxSource,
+    fxStatus,
+    fxUpdatedAt,
+    positionInsights,
+    refreshFxRates,
+    setBaseCurrency,
+    supportedCurrencies,
+  } = useFinanceData()
   const [converter, setConverter] = useState({
     amount: '1000',
     from: 'USD',
@@ -25,7 +34,7 @@ export function FXPage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Valuta base</p>
-              <h2>Ragiona nella tua moneta</h2>
+              <h2>Imposta la valuta di riferimento</h2>
             </div>
           </div>
           <select className="input" value={baseCurrency} onChange={(event) => setBaseCurrency(event.target.value as typeof baseCurrency)}>
@@ -36,7 +45,7 @@ export function FXPage() {
             ))}
           </select>
           <div className="soft-card">
-            <strong>{fxStatus === 'live' ? 'Feed live attivo' : 'Feed fallback'}</strong>
+            <strong>{fxStatus === 'live' ? 'Feed cambi attivo' : 'Feed locale di fallback'}</strong>
             <p className="muted-text">
               Fonte: {fxSource} - ultimo aggiornamento {fxUpdatedAt}
             </p>
@@ -50,7 +59,7 @@ export function FXPage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Convertitore</p>
-              <h2>Widget live integrato</h2>
+              <h2>Conversione rapida tra valute</h2>
             </div>
           </div>
           <div className="grid tri-grid">
@@ -80,8 +89,8 @@ export function FXPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <p className="muted-label">FX impact per strumento</p>
-            <h2>Acquisto vs cambio attuale</h2>
+            <p className="muted-label">Impatto cambio</p>
+            <h2>Confronto tra cambio di acquisto e cambio corrente</h2>
           </div>
         </div>
         <div className="stack gap-sm">
@@ -90,13 +99,13 @@ export function FXPage() {
               <div className="stack">
                 <strong>{position.symbol}</strong>
                 <span className="muted-text">
-                  buy fx {position.purchaseFxRate.toFixed(4)} / now {position.currentFxRate.toFixed(4)}
+                  acquisto {position.purchaseFxRate.toFixed(4)} / oggi {position.currentFxRate.toFixed(4)}
                 </span>
               </div>
               <div className="stack align-end">
                 <strong>{formatCurrency(position.marketValueBase, baseCurrency)}</strong>
                 <span className={position.fxImpactBase >= 0 ? 'positive' : 'negative'}>
-                  FX impact {formatCurrency(position.fxImpactBase, baseCurrency)}
+                  impatto FX {formatCurrency(position.fxImpactBase, baseCurrency)}
                 </span>
               </div>
             </div>

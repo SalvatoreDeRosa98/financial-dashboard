@@ -7,27 +7,27 @@ import { Sidebar } from './Sidebar'
 const pageMeta: Record<string, { title: string; subtitle: string }> = {
   '/overview': {
     title: 'Home',
-    subtitle: 'Patrimonio, crescita, conti liquidi e movimenti recenti.',
+    subtitle: 'Panoramica giornaliera di patrimonio, liquidita, investimenti e flussi principali.',
   },
   '/accounts': {
     title: 'Denaro',
-    subtitle: 'Conti modificabili, movimenti, budget e analisi mese per mese.',
+    subtitle: 'Conti operativi, movimenti, budget e analisi mensile in un unico spazio.',
   },
   '/investments': {
-    title: 'Strumenti finanziari',
-    subtitle: 'Capitale investito, andamento complessivo e dettaglio strumento su popup.',
+    title: 'Portafoglio',
+    subtitle: 'Posizioni aperte, performance, note operative e liquidita broker.',
   },
   '/expenses': {
     title: 'Mercati',
-    subtitle: 'Indici globali online, top 10 gainer e watchlist personale.',
+    subtitle: 'Indici, watchlist e segnali di mercato da monitorare.',
   },
   '/fx': {
-    title: 'Cambio',
-    subtitle: 'Valuta base personale, convertitore live e confronto acquisto vs cambio attuale.',
+    title: 'Valute',
+    subtitle: 'Valuta base, conversioni e impatto del cambio sul portafoglio.',
   },
   '/reports': {
     title: 'Report',
-    subtitle: 'Breakdown visuale di spese, budget e patrimonio per avere il quadro annuale.',
+    subtitle: 'Sintesi di spese, dividendi, crediti fiscali ed esposizione valutaria.',
   },
 }
 

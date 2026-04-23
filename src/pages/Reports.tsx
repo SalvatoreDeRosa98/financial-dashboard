@@ -22,7 +22,7 @@ export function ReportsPage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Spese per categoria</p>
-              <h2>Breakdown mensile</h2>
+              <h2>Distribuzione mensile</h2>
             </div>
           </div>
           <div className="chart-wrap compact">
@@ -42,7 +42,7 @@ export function ReportsPage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Report annuale</p>
+              <p className="muted-label">Flussi annuali</p>
               <h2>Entrate, uscite e patrimonio</h2>
             </div>
           </div>
@@ -65,8 +65,8 @@ export function ReportsPage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <p className="muted-label">Dividendi & rendita</p>
-            <h2>Financial independence tracker</h2>
+            <p className="muted-label">Dividendi</p>
+            <h2>Flusso cedolare e copertura costi</h2>
           </div>
         </div>
         <div className="grid tri-grid">
@@ -92,7 +92,7 @@ export function ReportsPage() {
         <article className="panel">
         <div className="panel-heading">
           <div>
-            <p className="muted-label">Zaino fiscale</p>
+            <p className="muted-label">Crediti fiscali</p>
             <h2>Minusvalenze residue</h2>
           </div>
         </div>
@@ -113,7 +113,7 @@ export function ReportsPage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Esposizione valutaria</p>
-              <h2>Distribuzione portfolio</h2>
+              <h2>Distribuzione per valuta</h2>
             </div>
           </div>
           <div className="grid mini-grid">
@@ -121,7 +121,7 @@ export function ReportsPage() {
               <div key={item.currency} className="soft-card">
                 <span>{item.currency}</span>
                 <strong>{formatCurrency(item.valueBase, baseCurrency)}</strong>
-                <small>{item.share.toFixed(1)}% del portfolio</small>
+                <small>{item.share.toFixed(1)}% del portafoglio</small>
               </div>
             ))}
           </div>

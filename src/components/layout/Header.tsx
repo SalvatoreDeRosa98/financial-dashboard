@@ -17,14 +17,14 @@ export function Header({ title, subtitle, onOpenMenu }: HeaderProps) {
         <button className="menu-button" onClick={onOpenMenu} type="button">
           Menu
         </button>
-        <p className="eyebrow">FinTracker Pro</p>
+        <p className="eyebrow">Tracker Finance</p>
         <h1>{title}</h1>
         <p className="subtitle">{subtitle}</p>
       </div>
       <div className="header-meta">
         <div className="pill">
           <span className="status-dot" />
-          Aggiornato oggi
+          Database locale attivo
         </div>
         <div className="date-label">{date}</div>
       </div>

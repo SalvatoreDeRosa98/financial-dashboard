@@ -9,9 +9,9 @@ interface MobileMenuProps {
 const navItems = [
   { to: '/overview', label: 'Home' },
   { to: '/accounts', label: 'Denaro' },
-  { to: '/investments', label: 'Strumenti finanziari' },
+  { to: '/investments', label: 'Portafoglio' },
   { to: '/expenses', label: 'Mercati' },
-  { to: '/fx', label: 'Cambio' },
+  { to: '/fx', label: 'Valute' },
   { to: '/reports', label: 'Report' },
 ]
 
@@ -20,7 +20,10 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
     <div className={`mobile-menu ${open ? 'is-open' : ''}`}>
       <div className="mobile-menu-panel">
         <div className="mobile-menu-header">
-          <strong>Navigazione</strong>
+          <div className="mobile-brand">
+            <strong>Tracker Finance</strong>
+            <span>Navigazione</span>
+          </div>
           <button onClick={onClose} type="button">
             Chiudi
           </button>

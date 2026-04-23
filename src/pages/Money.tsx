@@ -123,8 +123,8 @@ export function MoneyPage() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Nuovo movimento</p>
-              <h2>Entrate e uscite</h2>
+              <p className="muted-label">Nuova registrazione</p>
+              <h2>Inserisci un movimento</h2>
             </div>
           </div>
           <form
@@ -224,7 +224,7 @@ export function MoneyPage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Cashflow</p>
-              <h2>Entrate vs uscite</h2>
+              <h2>Confronto entrate e uscite</h2>
             </div>
           </div>
           <div className="chart-wrap">
@@ -246,8 +246,8 @@ export function MoneyPage() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Analisi avanzata</p>
-              <h2>Rendiconto mensile</h2>
+              <p className="muted-label">Analisi mensile</p>
+              <h2>Riepilogo del mese selezionato</h2>
             </div>
           </div>
           <div className="stack gap-sm">
@@ -275,7 +275,7 @@ export function MoneyPage() {
           <div className="grid split-grid">
             <div className="stack gap-sm">
               <div className="soft-card">
-                <span>Lista entrate</span>
+                <span>Entrate registrate</span>
                 <strong>{monthIncomeTransactions.length}</strong>
                 <small>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</small>
               </div>
@@ -301,7 +301,7 @@ export function MoneyPage() {
 
             <div className="stack gap-sm">
               <div className="soft-card">
-                <span>Lista spese</span>
+                <span>Spese registrate</span>
                 <strong>{monthExpenseTransactions.length}</strong>
                 <small>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</small>
               </div>
@@ -330,8 +330,8 @@ export function MoneyPage() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Budget & obiettivi</p>
-              <h2>Categorie del mese</h2>
+              <p className="muted-label">Budget</p>
+              <h2>Categorie e soglie mensili</h2>
             </div>
           </div>
           <div className="stack gap-md">

@@ -18,19 +18,69 @@ export function HomePage() {
     baseCurrency,
     basePortfolioValue,
     cashflowSeries,
+    fxStatus,
+    fxUpdatedAt,
     marketIndices,
+    marketStatus,
     summaryMetrics,
     totalLiquidBase,
     transactions,
+    userName,
   } = useFinanceData()
 
   const wealthMix = [
     { label: 'Liquidita', value: totalLiquidBase },
     { label: 'Investito', value: basePortfolioValue },
   ]
+  const metricDescriptions: Record<string, string> = {
+    'Patrimonio totale': 'Valore aggregato di liquidita e portafoglio convertito nella valuta base.',
+    'Liquidita disponibile': 'Disponibilita immediata su conti correnti, deposito e broker.',
+    'Portafoglio investito': 'Controvalore aggiornato delle posizioni finanziarie aperte.',
+    'Crescita mensile': 'Saldo netto del mese tra entrate registrate e uscite contabilizzate.',
+  }
+  const marketHeadline = marketIndices
+    .slice(0, 3)
+    .map((item) => item.symbol)
+    .join(' · ')
+  const marketStatusLabel = marketStatus === 'live' ? 'Feed live' : 'Snapshot locale'
+  const fxStatusLabel = fxStatus === 'live' ? 'Cambio aggiornato' : 'Cambio fallback'
 
   return (
     <div className="stack gap-lg">
+      <section className="panel workspace-hero">
+        <div className="workspace-hero-copy">
+          <p className="muted-label">Dashboard operativa</p>
+          <h2>{userName ? `Benvenuto, ${userName}` : 'Panoramica del patrimonio'}</h2>
+          <p className="workspace-hero-text">
+            Un unico spazio per liquidita, conti, portafoglio e mercati, con persistenza locale
+            e una lettura rapida delle priorita di giornata.
+          </p>
+          <div className="workspace-tag-row">
+            <span className="small-pill">Valuta base {baseCurrency}</span>
+            <span className="small-pill">{marketStatusLabel}</span>
+            <span className="small-pill">{fxStatusLabel}</span>
+          </div>
+        </div>
+
+        <div className="workspace-signal-grid">
+          <article className="signal-card">
+            <span className="signal-label">Mercati</span>
+            <strong>{marketHeadline}</strong>
+            <p>{marketStatus === 'live' ? 'Quotazioni aggiornate dal feed esterno.' : 'Vista operativa basata sul dataset locale.'}</p>
+          </article>
+          <article className="signal-card">
+            <span className="signal-label">Cambio</span>
+            <strong>{baseCurrency} come riferimento</strong>
+            <p>Ultimo stato feed: {fxUpdatedAt}.</p>
+          </article>
+          <article className="signal-card">
+            <span className="signal-label">Archiviazione</span>
+            <strong>Persistenza locale attiva</strong>
+            <p>Dashboard e onboarding salvano i dati nel browser tramite IndexedDB.</p>
+          </article>
+        </div>
+      </section>
+
       <section className="grid metrics-grid">
         {summaryMetrics.map((metric) => (
           <article key={metric.label} className={`panel metric-card metric-${metric.accent}`}>
@@ -39,6 +89,7 @@ export function HomePage() {
             <span className={metric.change >= 0 ? 'positive' : 'negative'}>
               {formatSignedPercent(metric.change)}
             </span>
+            <span className="metric-caption">{metricDescriptions[metric.label]}</span>
           </article>
         ))}
       </section>
@@ -47,8 +98,8 @@ export function HomePage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">I tuoi soldi</p>
-              <h2>Crescita del patrimonio negli ultimi 6 mesi</h2>
+              <p className="muted-label">Patrimonio</p>
+              <h2>Andamento del patrimonio negli ultimi 6 mesi</h2>
             </div>
           </div>
           <div className="chart-wrap">
@@ -80,8 +131,8 @@ export function HomePage() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Distribuzione patrimonio</p>
-              <h2>Liquidita vs investimenti</h2>
+              <p className="muted-label">Allocazione</p>
+              <h2>Ripartizione tra liquidita e investimenti</h2>
             </div>
           </div>
           <div className="chart-wrap compact">
@@ -115,14 +166,15 @@ export function HomePage() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Conti personali</p>
-              <h2>Dove stanno oggi i tuoi soldi liquidi</h2>
+              <p className="muted-label">Conti</p>
+              <h2>Saldi correnti per istituto</h2>
             </div>
+            <span className="small-pill">{accounts.length} conti</span>
           </div>
           <div className="stack gap-sm">
             {accounts.map((account) => (
               <div key={account.id} className="list-card">
-                <div className="stack">
+                <div className="stack gap-xs">
                   <strong>{account.name}</strong>
                   <span className="muted-text">{account.institution}</span>
                 </div>
@@ -135,14 +187,15 @@ export function HomePage() {
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Movimenti recenti</p>
-              <h2>Come si muovono soldi e spese giorno per giorno</h2>
+              <p className="muted-label">Attivita recente</p>
+              <h2>Ultimi movimenti registrati</h2>
             </div>
+            <span className="small-pill">{transactions.slice(0, 6).length} righe</span>
           </div>
           <div className="stack gap-sm">
             {transactions.slice(0, 6).map((transaction) => (
               <div key={transaction.id} className="list-card">
-                <div className="stack">
+                <div className="stack gap-xs">
                   <strong>{transaction.title}</strong>
                   <span className="muted-text">
                     {transaction.category} - {formatDateLabel(transaction.date)}
@@ -160,13 +213,13 @@ export function HomePage() {
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <p className="muted-label">Mercato in sottofondo</p>
-            <h2>Solo un colpo d'occhio sugli indici principali</h2>
+            <p className="muted-label">Mercati</p>
+            <h2>Indici principali</h2>
           </div>
         </div>
         <div className="grid mini-grid">
           {marketIndices.map((item) => (
-            <article key={item.symbol} className="soft-card">
+            <article key={item.symbol} className="soft-card home-market-card">
               <span>{item.region}</span>
               <strong>{item.name}</strong>
               <div className="large-value">{formatCurrency(item.price, item.currency)}</div>
