@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useContext,
@@ -10,23 +11,19 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   currencyColors,
   periodOptions,
-  seedAccounts,
-  seedBudgets,
-  seedCalendar,
   seedFxRates,
   seedIndices,
   seedNews,
   seedOpportunities,
-  seedPositions,
-  seedStrategyTargets,
-  seedTaxCreditBuckets,
-  seedTransactions,
-  seedWatchlist,
   supportedCurrencies,
 } from '../data/seed'
+import {
+  defaultFinanceState,
+  emptyFinanceState,
+  type FinanceState,
+} from '../data/state'
 import type {
   AccountItem,
-  BudgetCategory,
   CalendarItem,
   CashflowPoint,
   CurrencyCode,
@@ -38,28 +35,16 @@ import type {
   PortfolioPosition,
   SaleSimulation,
   SimulatedSaleLot,
-  StrategyTarget,
   SummaryMetric,
   TaxCreditBucket,
-  TransactionItem,
-  WatchlistItem,
 } from '../data/types'
+import {
+  bootstrapFinanceState,
+  saveFinanceState,
+  saveUserName,
+} from '../lib/database'
 import { convertWithEuroBaseRates, monthKey, monthLabelFromKey } from '../lib/utils'
 import { getHistoricalFxRate, getLatestFxRates, getMarketSnapshot } from '../services/api'
-
-const STORAGE_KEY = 'fintracker-pro-state-v2'
-
-interface FinanceState {
-  baseCurrency: CurrencyCode
-  accounts: AccountItem[]
-  budgets: BudgetCategory[]
-  transactions: TransactionItem[]
-  positions: PortfolioPosition[]
-  watchlist: WatchlistItem[]
-  calendarItems: CalendarItem[]
-  taxCredits: TaxCreditBucket[]
-  strategyTargets: StrategyTarget[]
-}
 
 interface PositionDraft {
   symbol: string
@@ -115,6 +100,7 @@ interface PositionInsight extends PortfolioPosition {
 }
 
 interface FinanceContextValue extends FinanceState {
+  isHydrated: boolean
   supportedCurrencies: CurrencyCode[]
   fxRates: FxRateMap
   fxUpdatedAt: string
@@ -139,64 +125,94 @@ interface FinanceContextValue extends FinanceState {
   taxCreditRemaining: number
   taxCreditExpiring: TaxCreditBucket[]
   periodOptions: typeof periodOptions
+  userName: string
+  setUserName: (name: string) => void
+  completeOnboarding: (name: string) => void
   setBaseCurrency: (currency: CurrencyCode) => void
   addTransaction: (input: TransactionDraft) => void
   updateBudget: (id: string, budget: number) => void
-  updateAccount: (id: string, patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance'>>) => void
+  updateAccount: (
+    id: string,
+    patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance'>>,
+  ) => void
   addPosition: (input: PositionDraft) => Promise<void>
   updatePositionPrice: (id: string, price: number) => void
   addWatchlistItem: (input: WatchlistDraft) => void
   addCalendarItem: (input: CalendarDraft) => void
   updatePositionNotes: (id: string, thesis: string) => void
-  updateStrategyTarget: (assetType: PortfolioPosition['assetType'], targetPct: number) => void
-  simulateSale: (symbol: string, quantity: number, method: 'FIFO' | 'LIFO') => SaleSimulation | null
+  updateStrategyTarget: (
+    assetType: PortfolioPosition['assetType'],
+    targetPct: number,
+  ) => void
+  simulateSale: (
+    symbol: string,
+    quantity: number,
+    method: 'FIFO' | 'LIFO',
+  ) => SaleSimulation | null
   exportFiscalCsv: () => string
   refreshFxRates: () => Promise<void>
   refreshMarketData: () => Promise<void>
   resetData: () => void
 }
 
-const defaultState: FinanceState = {
-  baseCurrency: 'EUR',
-  accounts: seedAccounts,
-  budgets: seedBudgets,
-  transactions: seedTransactions,
-  positions: seedPositions,
-  watchlist: seedWatchlist,
-  calendarItems: seedCalendar,
-  taxCredits: seedTaxCreditBuckets,
-  strategyTargets: seedStrategyTargets,
-}
-
 const FinanceContext = createContext<FinanceContextValue | null>(null)
-
-function readState(): FinanceState {
-  if (typeof window === 'undefined') return defaultState
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultState
-    return { ...defaultState, ...JSON.parse(raw) }
-  } catch {
-    return defaultState
-  }
-}
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
 }
 
 export function FinanceDataProvider({ children }: PropsWithChildren) {
-  const [state, setState] = useState<FinanceState>(readState)
+  const [state, setState] = useState<FinanceState>(defaultFinanceState)
+  const [userName, setUserNameState] = useState('')
+  const [isHydrated, setIsHydrated] = useState(false)
   const [newsItems] = useState<NewsItem[]>(seedNews)
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [state])
+    let isMounted = true
+
+    void (async () => {
+      try {
+        const payload = await bootstrapFinanceState()
+        if (!isMounted) return
+
+        setState(payload.state)
+        setUserNameState(payload.userName)
+      } catch {
+        if (!isMounted) return
+
+        setState(defaultFinanceState)
+        setUserNameState('')
+      } finally {
+        if (isMounted) {
+          setIsHydrated(true)
+        }
+      }
+    })()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isHydrated) return
+    void saveFinanceState(state)
+  }, [isHydrated, state])
+
+  useEffect(() => {
+    if (!isHydrated) return
+    void saveUserName(userName)
+  }, [isHydrated, userName])
 
   const marketSymbols = useMemo(
-    () => Array.from(new Set([...seedIndices.map((item) => item.symbol), ...state.watchlist.map((item) => item.symbol)])),
+    () =>
+      Array.from(
+        new Set([
+          ...seedIndices.map((item) => item.symbol),
+          ...state.watchlist.map((item) => item.symbol),
+        ]),
+      ),
     [state.watchlist],
   )
 
@@ -219,7 +235,10 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   const marketStatus = marketQuery.data?.status ?? 'fallback'
   const opportunities = marketQuery.data?.opportunities ?? seedOpportunities
   const liveWatchlist = useMemo(() => {
-    const quoteMap = new Map((marketQuery.data?.quotes ?? []).map((quote) => [quote.symbol, quote]))
+    const quoteMap = new Map(
+      (marketQuery.data?.quotes ?? []).map((quote) => [quote.symbol, quote]),
+    )
+
     return state.watchlist.map((item) => {
       const live = quoteMap.get(item.symbol)
       return live ? { ...item, price: live.price, change: live.change } : item
@@ -232,7 +251,12 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       const marketValueOriginal = position.quantity * position.currentPrice
       const pnlOriginal = marketValueOriginal - costOriginal
       const pnlOriginalPct = costOriginal > 0 ? (pnlOriginal / costOriginal) * 100 : 0
-      const currentFxRate = convertWithEuroBaseRates(1, position.currency, state.baseCurrency, fxRates)
+      const currentFxRate = convertWithEuroBaseRates(
+        1,
+        position.currency,
+        state.baseCurrency,
+        fxRates,
+      )
       const costBase = costOriginal * position.purchaseFxRate
       const marketValueBase = marketValueOriginal * currentFxRate
       const pnlBase = marketValueBase - costBase
@@ -281,7 +305,13 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     () =>
       state.accounts.reduce(
         (sum, account) =>
-          sum + convertWithEuroBaseRates(account.balance, account.currency, state.baseCurrency, fxRates),
+          sum +
+          convertWithEuroBaseRates(
+            account.balance,
+            account.currency,
+            state.baseCurrency,
+            fxRates,
+          ),
         0,
       ),
     [fxRates, state.accounts, state.baseCurrency],
@@ -311,11 +341,32 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
           0,
         ),
     )
+
     return [
-      { label: 'Patrimonio totale', value: totalLiquidBase + basePortfolioValue, change: 4.2, accent: 'teal' },
-      { label: 'Liquidita disponibile', value: totalLiquidBase, change: 2.1, accent: 'blue' },
-      { label: 'Portafoglio investito', value: basePortfolioValue, change: 7.1, accent: 'violet' },
-      { label: 'Crescita mensile', value: income - expenses, change: 2.8, accent: 'amber' },
+      {
+        label: 'Patrimonio totale',
+        value: totalLiquidBase + basePortfolioValue,
+        change: 4.2,
+        accent: 'teal',
+      },
+      {
+        label: 'Liquidita disponibile',
+        value: totalLiquidBase,
+        change: 2.1,
+        accent: 'blue',
+      },
+      {
+        label: 'Portafoglio investito',
+        value: basePortfolioValue,
+        change: 7.1,
+        accent: 'violet',
+      },
+      {
+        label: 'Crescita mensile',
+        value: income - expenses,
+        change: 2.8,
+        accent: 'amber',
+      },
     ]
   }, [basePortfolioValue, fxRates, state.baseCurrency, state.transactions, totalLiquidBase])
 
@@ -347,11 +398,13 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
         state.baseCurrency,
         fxRates,
       )
+
       if (transaction.type === 'income') {
         current.income += amountInBase
       } else {
         current.expenses += Math.abs(amountInBase)
       }
+
       grouped.set(key, current)
     }
 
@@ -359,12 +412,14 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([, value], index, all) => ({
         ...value,
-        netWorth: summaryMetrics[0].value - (all.length - index - 1) * 3800 + value.income - value.expenses,
+        netWorth:
+          summaryMetrics[0].value - (all.length - index - 1) * 3800 + value.income - value.expenses,
       }))
   }, [fxRates, state.baseCurrency, state.transactions, summaryMetrics])
 
   const portfolioTimeline = useMemo(() => {
     const currentTotal = basePortfolioValue
+
     return ['Nov', 'Dic', 'Gen', 'Feb', 'Mar', 'Apr'].map((month, index, all) => ({
       month,
       total: currentTotal - (all.length - index - 1) * 1800,
@@ -398,7 +453,9 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       .sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift))[0]
 
     return worstDrift && Math.abs(worstDrift.drift) >= 5
-      ? `Strategia fuori range: ${worstDrift.assetType} e a ${worstDrift.drift > 0 ? '+' : ''}${worstDrift.drift.toFixed(1)} punti rispetto al target.`
+      ? `Strategia fuori range: ${worstDrift.assetType} e a ${
+          worstDrift.drift > 0 ? '+' : ''
+        }${worstDrift.drift.toFixed(1)} punti rispetto al target.`
       : null
   }, [positionInsights, state.strategyTargets])
 
@@ -407,8 +464,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       positionInsights.reduce((sum, item) => {
         const annualDividend = (item.annualDividendPerShare ?? 0) * item.quantity
         return (
-          sum +
-          convertWithEuroBaseRates(annualDividend, item.currency, state.baseCurrency, fxRates)
+          sum + convertWithEuroBaseRates(annualDividend, item.currency, state.baseCurrency, fxRates)
         )
       }, 0),
     [fxRates, positionInsights, state.baseCurrency],
@@ -437,6 +493,15 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     cutoff.setMonth(cutoff.getMonth() + 12)
     return state.taxCredits.filter((item) => new Date(item.expiresAt) <= cutoff)
   }, [state.taxCredits])
+
+  const setUserName = (name: string) => {
+    setUserNameState(name)
+  }
+
+  const completeOnboarding = (name: string) => {
+    setState(emptyFinanceState)
+    setUserNameState(name)
+  }
 
   const setBaseCurrency = (currency: CurrencyCode) => {
     setState((current) => ({ ...current, baseCurrency: currency }))
@@ -505,7 +570,12 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     if (input.currency !== state.baseCurrency) {
       try {
         const historicalRates = await getHistoricalFxRate(input.purchaseDate)
-        purchaseFxRate = convertWithEuroBaseRates(1, input.currency, state.baseCurrency, historicalRates)
+        purchaseFxRate = convertWithEuroBaseRates(
+          1,
+          input.currency,
+          state.baseCurrency,
+          historicalRates,
+        )
       } catch {
         purchaseFxRate = convertWithEuroBaseRates(1, input.currency, state.baseCurrency, fxRates)
       }
@@ -585,12 +655,14 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
 
     for (const lot of lotsPool) {
       if (remaining <= 0) break
+
       const matchedQty = Math.min(remaining, lot.quantity)
       const lotCostBase = matchedQty * lot.buyPrice * lot.purchaseFxRate
       const lotProceedsBase =
         matchedQty *
         lot.currentPrice *
         convertWithEuroBaseRates(1, lot.currency, state.baseCurrency, fxRates)
+
       costBase += lotCostBase
       proceedsBase += lotProceedsBase
       lots.push({
@@ -623,7 +695,8 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   }
 
   const exportFiscalCsv = () => {
-    const header = 'symbol,purchaseDate,assetType,currency,quantity,buyPrice,currentPrice,costBase,marketValueBase,pnlBase,thesis'
+    const header =
+      'symbol,purchaseDate,assetType,currency,quantity,buyPrice,currentPrice,costBase,marketValueBase,pnlBase,thesis'
     const rows = positionInsights.map((item) =>
       [
         item.symbol,
@@ -639,6 +712,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
         `"${(item.thesis ?? '').replace(/"/g, '""')}"`,
       ].join(','),
     )
+
     return [header, ...rows].join('\n')
   }
 
@@ -651,81 +725,58 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   }
 
   const resetData = () => {
-    setState(defaultState)
+    setState(defaultFinanceState)
     void queryClient.invalidateQueries({ queryKey: ['fx-rates'] })
     void queryClient.invalidateQueries({ queryKey: ['market-snapshot'] })
   }
 
-  const value = useMemo(
-    () => ({
-      ...state,
-      supportedCurrencies,
-      fxRates,
-      fxUpdatedAt,
-      fxSource: fxQuery.data?.source ?? 'Seed locale',
-      fxStatus,
-      marketIndices,
-      marketStatus,
-      newsItems,
-      opportunities,
-      watchlist: liveWatchlist,
-      summaryMetrics,
-      cashflowSeries,
-      exposure,
-      positionInsights,
-      basePortfolioValue,
-      totalLiquidBase,
-      portfolioTimeline,
-      hedgingAlert,
-      strategyAlert,
-      dividendMonthlyAverageBase,
-      dividendCoveragePct,
-      annualDividendIncomeBase,
-      taxCreditRemaining,
-      taxCreditExpiring,
-      periodOptions,
-      setBaseCurrency,
-      addTransaction,
-      updateBudget,
-      updateAccount,
-      addPosition,
-      updatePositionPrice,
-      addWatchlistItem,
-      addCalendarItem,
-      updatePositionNotes,
-      updateStrategyTarget,
-      simulateSale,
-      exportFiscalCsv,
-      refreshFxRates,
-      refreshMarketData,
-      resetData,
-    }),
-    [
-      state,
-      fxRates,
-      fxUpdatedAt,
-      fxStatus,
-      marketIndices,
-      marketStatus,
-      newsItems,
-      opportunities,
-      liveWatchlist,
-      summaryMetrics,
-      cashflowSeries,
-      exposure,
-      positionInsights,
-      basePortfolioValue,
-      totalLiquidBase,
-      portfolioTimeline,
-      hedgingAlert,
-      strategyAlert,
-      dividendMonthlyAverageBase,
-      dividendCoveragePct,
-      annualDividendIncomeBase,
-      taxCreditRemaining,
-      taxCreditExpiring,
-    ],
-  )
+  const value: FinanceContextValue = {
+    ...state,
+    isHydrated,
+    supportedCurrencies,
+    fxRates,
+    fxUpdatedAt,
+    fxSource: fxQuery.data?.source ?? 'Seed locale',
+    fxStatus,
+    marketIndices,
+    marketStatus,
+    newsItems,
+    opportunities,
+    watchlist: liveWatchlist,
+    summaryMetrics,
+    cashflowSeries,
+    exposure,
+    positionInsights,
+    basePortfolioValue,
+    totalLiquidBase,
+    portfolioTimeline,
+    hedgingAlert,
+    strategyAlert,
+    dividendMonthlyAverageBase,
+    dividendCoveragePct,
+    annualDividendIncomeBase,
+    taxCreditRemaining,
+    taxCreditExpiring,
+    periodOptions,
+    userName,
+    setUserName,
+    completeOnboarding,
+    setBaseCurrency,
+    addTransaction,
+    updateBudget,
+    updateAccount,
+    addPosition,
+    updatePositionPrice,
+    addWatchlistItem,
+    addCalendarItem,
+    updatePositionNotes,
+    updateStrategyTarget,
+    simulateSale,
+    exportFiscalCsv,
+    refreshFxRates,
+    refreshMarketData,
+    resetData,
+  }
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>
 }
