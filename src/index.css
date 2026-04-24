@@ -418,6 +418,47 @@ h2 {
   margin-bottom: 6px;
 }
 
+.summary-text-list {
+  display: grid;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.summary-text-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.summary-text-row span {
+  color: var(--muted);
+}
+
+.summary-text-row strong,
+.summary-text-detail strong,
+.summary-text-detail small {
+  margin: 0;
+}
+
+.summary-text-row-top {
+  align-items: flex-start;
+}
+
+.summary-text-detail {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  text-align: right;
+}
+
+.summary-text-detail small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .workspace-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);

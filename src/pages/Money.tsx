@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useFinanceData } from '../hooks/useFinanceData'
-import { formatCurrency, formatDateLabel, monthKey, monthLabelFromKey, safeNumber } from '../lib/utils'
+import { formatCurrency, formatDateLabel, monthKey, safeNumber } from '../lib/utils'
 import { useDashboardStore } from '../stores/dashboardStore'
 
 function AccountEditorCard({
@@ -325,75 +325,43 @@ export function MoneyPage() {
               onChange={(event) => setSelectedMonth(event.target.value)}
             />
           </div>
-          <div className="grid tri-grid">
-            <div className="soft-card">
+          <div className="summary-text-list">
+            <div className="summary-text-row">
               <span>Entrate del mese</span>
               <strong>{formatCurrency(monthSummary.income, baseCurrency)}</strong>
             </div>
-            <div className="soft-card">
+            <div className="summary-text-row">
               <span>Spese del mese</span>
               <strong>{formatCurrency(monthSummary.expenses, baseCurrency)}</strong>
             </div>
-            <div className="soft-card">
+            <div className="summary-text-row">
               <span>Saldo netto</span>
               <strong className={monthNet >= 0 ? 'positive' : 'negative'}>
                 {formatCurrency(monthNet, baseCurrency)}
               </strong>
             </div>
-          </div>
-          <div className="grid split-grid">
-            <div className="soft-card">
+            <div className="summary-text-row summary-text-row-top">
               <span>Spesa piu rilevante</span>
-              <strong>{biggestExpense ? biggestExpense.title : 'Nessuna spesa'}</strong>
-              <small>
-                {biggestExpense
-                  ? `${formatCurrency(biggestExpense.amount, biggestExpense.currency)} · ${formatDateLabel(biggestExpense.date)}`
-                  : 'Nessun movimento di uscita nel mese selezionato.'}
-              </small>
+              <div className="summary-text-detail">
+                <strong>{biggestExpense ? biggestExpense.title : 'Nessuna spesa registrata'}</strong>
+                <small>
+                  {biggestExpense
+                    ? `${formatCurrency(biggestExpense.amount, biggestExpense.currency)} · ${formatDateLabel(biggestExpense.date)}`
+                    : 'Nessun movimento di uscita nel mese selezionato.'}
+                </small>
+              </div>
             </div>
-            <div className="soft-card">
+            <div className="summary-text-row summary-text-row-top">
               <span>Ultimo movimento</span>
-              <strong>{latestMovement ? latestMovement.title : 'Nessun movimento'}</strong>
-              <small>
-                {latestMovement
-                  ? `${formatCurrency(latestMovement.amount, latestMovement.currency)} · ${formatDateLabel(latestMovement.date)}`
-                  : 'Il riepilogo si popola quando inizi a registrare operazioni.'}
-              </small>
-            </div>
-          </div>
-          <div className="stack gap-sm">
-            <div className="panel-heading compact-heading">
-              <div>
-                <p className="muted-label">Movimenti del mese</p>
-                <h2>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</h2>
+              <div className="summary-text-detail">
+                <strong>{latestMovement ? latestMovement.title : 'Nessun movimento registrato'}</strong>
+                <small>
+                  {latestMovement
+                    ? `${formatCurrency(latestMovement.amount, latestMovement.currency)} · ${formatDateLabel(latestMovement.date)}`
+                    : 'Il riepilogo si popola quando inizi a registrare operazioni.'}
+                </small>
               </div>
             </div>
-            {monthTransactions.length ? (
-              monthTransactions.map((transaction) => (
-                <button
-                  key={transaction.id}
-                  className="list-card list-card-button"
-                  onClick={() => openTransactionEditor(transaction.id)}
-                  type="button"
-                >
-                  <div className="stack gap-xs">
-                    <strong>{transaction.title}</strong>
-                    <span className="muted-text">
-                      {transaction.category} - {formatDateLabel(transaction.date)}
-                    </span>
-                    <span className="muted-text">{getAccountLabel(transaction.accountId)}</span>
-                  </div>
-                  <strong className={transaction.type === 'income' ? 'positive' : 'negative'}>
-                    {formatCurrency(transaction.amount, transaction.currency)}
-                  </strong>
-                </button>
-              ))
-            ) : (
-              <div className="empty-state">
-                <strong>Nessun movimento nel mese selezionato</strong>
-                <p>Quando registri operazioni in questo mese, il riepilogo comparira qui.</p>
-              </div>
-            )}
           </div>
         </article>
 
