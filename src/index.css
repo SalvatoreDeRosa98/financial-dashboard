@@ -414,6 +414,10 @@ h2 {
   margin-top: 6px;
 }
 
+.compact-heading {
+  margin-bottom: 6px;
+}
+
 .workspace-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
@@ -578,6 +582,14 @@ h2 {
   border-color: rgba(15, 118, 110, 0.18);
   box-shadow: 0 14px 24px rgba(15, 23, 42, 0.06);
   transform: translateY(-1px);
+}
+
+.list-card-button {
+  width: 100%;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .inline-editor {

@@ -37,6 +37,7 @@ import type {
   SimulatedSaleLot,
   SummaryMetric,
   TaxCreditBucket,
+  TransactionItem,
 } from '../data/types'
 import {
   bootstrapFinanceState,
@@ -168,6 +169,7 @@ interface FinanceContextValue extends FinanceState {
   setBaseCurrency: (currency: CurrencyCode) => void
   addAccount: () => void
   addTransaction: (input: TransactionDraft) => void
+  updateTransaction: (id: string, input: TransactionDraft) => void
   updateBudget: (id: string, budget: number) => void
   updateAccount: (
     id: string,
@@ -269,6 +271,21 @@ function countOccurrencesWithinHorizon(
   }
 
   return count
+}
+
+function normalizeTransactionDraft(input: TransactionDraft) {
+  return {
+    ...input,
+    amount: Math.abs(input.amount),
+  }
+}
+
+function transactionAccountDelta(transaction: Pick<TransactionItem, 'amount' | 'type'>) {
+  return transaction.type === 'expense' ? -Math.abs(transaction.amount) : Math.abs(transaction.amount)
+}
+
+function transactionBudgetDelta(transaction: Pick<TransactionItem, 'amount' | 'type'>) {
+  return transaction.type === 'expense' ? Math.abs(transaction.amount) : 0
 }
 
 export function FinanceDataProvider({ children }: PropsWithChildren) {
@@ -735,23 +752,25 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   }
 
   const addTransaction = (input: TransactionDraft) => {
+    const normalizedInput = normalizeTransactionDraft(input)
+
     setState((current) => ({
       ...current,
-      transactions: [{ id: createId('tx'), ...input }, ...current.transactions].sort((a, b) =>
+      transactions: [{ id: createId('tx'), ...normalizedInput }, ...current.transactions].sort((a, b) =>
         b.date.localeCompare(a.date),
       ),
       budgets:
-        input.type === 'expense'
+        normalizedInput.type === 'expense'
           ? current.budgets.map((budget) =>
-              budget.name === input.category
+              budget.name === normalizedInput.category
                 ? {
                     ...budget,
                     spent:
                       budget.spent +
                       Math.abs(
                         convertWithEuroBaseRates(
-                          input.amount,
-                          input.currency,
+                          normalizedInput.amount,
+                          normalizedInput.currency,
                           current.baseCurrency,
                           fxRates,
                         ),
@@ -761,16 +780,80 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
             )
           : current.budgets,
       accounts: current.accounts.map((account) =>
-        account.id === input.accountId
+        account.id === normalizedInput.accountId
           ? {
               ...account,
-              balance:
-                account.balance +
-                (input.type === 'expense' ? -Math.abs(input.amount) : Math.abs(input.amount)),
+              balance: account.balance + transactionAccountDelta(normalizedInput),
             }
           : account,
       ),
     }))
+  }
+
+  const updateTransaction = (id: string, input: TransactionDraft) => {
+    const normalizedInput = normalizeTransactionDraft(input)
+
+    setState((current) => {
+      const previous = current.transactions.find((transaction) => transaction.id === id)
+
+      if (!previous) {
+        return current
+      }
+
+      const previousBudgetDelta = Math.abs(
+        convertWithEuroBaseRates(
+          transactionBudgetDelta(previous),
+          previous.currency,
+          current.baseCurrency,
+          fxRates,
+        ),
+      )
+      const nextBudgetDelta = Math.abs(
+        convertWithEuroBaseRates(
+          transactionBudgetDelta(normalizedInput),
+          normalizedInput.currency,
+          current.baseCurrency,
+          fxRates,
+        ),
+      )
+
+      return {
+        ...current,
+        transactions: current.transactions
+          .map((transaction) => (transaction.id === id ? { id, ...normalizedInput } : transaction))
+          .sort((left, right) => right.date.localeCompare(left.date)),
+        accounts: current.accounts.map((account) => {
+          let nextBalance = account.balance
+
+          if (account.id === previous.accountId) {
+            nextBalance -= transactionAccountDelta(previous)
+          }
+
+          if (account.id === normalizedInput.accountId) {
+            nextBalance += transactionAccountDelta(normalizedInput)
+          }
+
+          return account.id === previous.accountId || account.id === normalizedInput.accountId
+            ? { ...account, balance: nextBalance }
+            : account
+        }),
+        budgets: current.budgets.map((budget) => {
+          let nextSpent = budget.spent
+
+          if (previous.type === 'expense' && budget.name === previous.category) {
+            nextSpent = Math.max(nextSpent - previousBudgetDelta, 0)
+          }
+
+          if (normalizedInput.type === 'expense' && budget.name === normalizedInput.category) {
+            nextSpent += nextBudgetDelta
+          }
+
+          return budget.name === previous.category || budget.name === normalizedInput.category
+            ? { ...budget, spent: nextSpent }
+            : budget
+        }),
+      }
+    })
   }
 
   const addRecurringExpense = (input: RecurringExpenseDraft) => {
@@ -1027,6 +1110,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     setBaseCurrency,
     addAccount,
     addTransaction,
+    updateTransaction,
     updateBudget,
     updateAccount,
     addRecurringExpense,

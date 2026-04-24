@@ -66,6 +66,7 @@ export function MoneyPage() {
     transactions,
     updateAccount,
     updateBudget,
+    updateTransaction,
   } = useFinanceData()
   const [form, setForm] = useState<{
     title: string
@@ -84,6 +85,24 @@ export function MoneyPage() {
     type: 'expense' as const,
     accountId: accounts[0]?.id ?? '',
   })
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<{
+    title: string
+    category: string
+    amount: string
+    currency: typeof baseCurrency
+    date: string
+    type: 'income' | 'expense'
+    accountId: string
+  }>({
+    title: '',
+    category: 'Cibo',
+    amount: '',
+    currency: baseCurrency,
+    date: '2026-04-18',
+    type: 'expense',
+    accountId: accounts[0]?.id ?? '',
+  })
   const monthMap = transactions.reduce<Record<string, { income: number; expenses: number }>>((acc, transaction) => {
     const key = monthKey(transaction.date)
     if (!acc[key]) {
@@ -100,16 +119,41 @@ export function MoneyPage() {
   const selectedMonth = useDashboardStore((state) => state.selectedMoneyMonth) ?? monthKeys[0] ?? monthKey(form.date)
   const setSelectedMonth = useDashboardStore((state) => state.setSelectedMoneyMonth)
   const monthTransactions = transactions.filter((item) => monthKey(item.date) === selectedMonth)
-  const monthIncomeTransactions = monthTransactions.filter((item) => item.type === 'income')
-  const monthExpenseTransactions = monthTransactions.filter((item) => item.type === 'expense')
   const monthSummary = monthMap[selectedMonth] ?? { income: 0, expenses: 0 }
+  const monthNet = monthSummary.income - monthSummary.expenses
+  const selectedTransaction =
+    transactions.find((transaction) => transaction.id === selectedTransactionId) ?? null
   const monthPickerValue = useMemo(() => {
     if (selectedMonth) return selectedMonth
     return monthKey(form.date)
   }, [form.date, selectedMonth])
+  const biggestExpense =
+    monthTransactions
+      .filter((transaction) => transaction.type === 'expense')
+      .sort((left, right) => right.amount - left.amount)[0] ?? null
+  const latestMovement = monthTransactions[0] ?? null
+
   const getAccountLabel = (accountId: string) => {
     const account = accounts.find((item) => item.id === accountId)
     return account ? `${account.institution} · ${account.name}` : 'Conto non trovato'
+  }
+
+  const transactionCategories = ['Cibo', 'Casa', 'Trasporti', 'Tempo libero', 'Abbonamenti', 'Entrate']
+
+  const openTransactionEditor = (transactionId: string) => {
+    const transaction = transactions.find((item) => item.id === transactionId)
+    if (!transaction) return
+
+    setEditForm({
+      title: transaction.title,
+      category: transaction.category,
+      amount: String(transaction.amount),
+      currency: transaction.currency,
+      date: transaction.date,
+      type: transaction.type,
+      accountId: transaction.accountId,
+    })
+    setSelectedTransactionId(transactionId)
   }
 
   return (
@@ -281,7 +325,7 @@ export function MoneyPage() {
               onChange={(event) => setSelectedMonth(event.target.value)}
             />
           </div>
-          <div className="grid split-grid">
+          <div className="grid tri-grid">
             <div className="soft-card">
               <span>Entrate del mese</span>
               <strong>{formatCurrency(monthSummary.income, baseCurrency)}</strong>
@@ -290,59 +334,66 @@ export function MoneyPage() {
               <span>Spese del mese</span>
               <strong>{formatCurrency(monthSummary.expenses, baseCurrency)}</strong>
             </div>
+            <div className="soft-card">
+              <span>Saldo netto</span>
+              <strong className={monthNet >= 0 ? 'positive' : 'negative'}>
+                {formatCurrency(monthNet, baseCurrency)}
+              </strong>
+            </div>
           </div>
           <div className="grid split-grid">
-            <div className="stack gap-sm">
-              <div className="soft-card">
-                <span>Entrate registrate</span>
-                <strong>{monthIncomeTransactions.length}</strong>
-                <small>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</small>
-              </div>
-              {monthIncomeTransactions.length ? (
-                monthIncomeTransactions.map((transaction) => (
-                  <div key={transaction.id} className="list-card">
-                    <div className="stack">
-                      <strong>{transaction.title}</strong>
-                      <span className="muted-text">
-                        {transaction.category} - {formatDateLabel(transaction.date)}
-                      </span>
-                      <span className="muted-text">{getAccountLabel(transaction.accountId)}</span>
-                    </div>
-                    <strong className="positive">{formatCurrency(transaction.amount, transaction.currency)}</strong>
-                  </div>
-                ))
-              ) : (
-                <div className="soft-card">
-                  <p className="muted-text">Nessuna entrata registrata in questo mese.</p>
-                </div>
-              )}
+            <div className="soft-card">
+              <span>Spesa piu rilevante</span>
+              <strong>{biggestExpense ? biggestExpense.title : 'Nessuna spesa'}</strong>
+              <small>
+                {biggestExpense
+                  ? `${formatCurrency(biggestExpense.amount, biggestExpense.currency)} · ${formatDateLabel(biggestExpense.date)}`
+                  : 'Nessun movimento di uscita nel mese selezionato.'}
+              </small>
             </div>
-
-            <div className="stack gap-sm">
-              <div className="soft-card">
-                <span>Spese registrate</span>
-                <strong>{monthExpenseTransactions.length}</strong>
-                <small>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</small>
-              </div>
-              {monthExpenseTransactions.length ? (
-                monthExpenseTransactions.map((transaction) => (
-                  <div key={transaction.id} className="list-card">
-                    <div className="stack">
-                      <strong>{transaction.title}</strong>
-                      <span className="muted-text">
-                        {transaction.category} - {formatDateLabel(transaction.date)}
-                      </span>
-                      <span className="muted-text">{getAccountLabel(transaction.accountId)}</span>
-                    </div>
-                    <strong className="negative">{formatCurrency(transaction.amount, transaction.currency)}</strong>
-                  </div>
-                ))
-              ) : (
-                <div className="soft-card">
-                  <p className="muted-text">Nessuna spesa registrata in questo mese.</p>
-                </div>
-              )}
+            <div className="soft-card">
+              <span>Ultimo movimento</span>
+              <strong>{latestMovement ? latestMovement.title : 'Nessun movimento'}</strong>
+              <small>
+                {latestMovement
+                  ? `${formatCurrency(latestMovement.amount, latestMovement.currency)} · ${formatDateLabel(latestMovement.date)}`
+                  : 'Il riepilogo si popola quando inizi a registrare operazioni.'}
+              </small>
             </div>
+          </div>
+          <div className="stack gap-sm">
+            <div className="panel-heading compact-heading">
+              <div>
+                <p className="muted-label">Movimenti del mese</p>
+                <h2>{monthPickerValue ? monthLabelFromKey(monthPickerValue) : 'Mese selezionato'}</h2>
+              </div>
+            </div>
+            {monthTransactions.length ? (
+              monthTransactions.map((transaction) => (
+                <button
+                  key={transaction.id}
+                  className="list-card list-card-button"
+                  onClick={() => openTransactionEditor(transaction.id)}
+                  type="button"
+                >
+                  <div className="stack gap-xs">
+                    <strong>{transaction.title}</strong>
+                    <span className="muted-text">
+                      {transaction.category} - {formatDateLabel(transaction.date)}
+                    </span>
+                    <span className="muted-text">{getAccountLabel(transaction.accountId)}</span>
+                  </div>
+                  <strong className={transaction.type === 'income' ? 'positive' : 'negative'}>
+                    {formatCurrency(transaction.amount, transaction.currency)}
+                  </strong>
+                </button>
+              ))
+            ) : (
+              <div className="empty-state">
+                <strong>Nessun movimento nel mese selezionato</strong>
+                <p>Quando registri operazioni in questo mese, il riepilogo comparira qui.</p>
+              </div>
+            )}
           </div>
         </article>
 
@@ -389,17 +440,23 @@ export function MoneyPage() {
           <div className="stack gap-sm">
             {transactions.length ? (
               transactions.slice(0, 8).map((transaction) => (
-                <div key={transaction.id} className="list-card">
-                  <div className="stack">
+                <button
+                  key={transaction.id}
+                  className="list-card list-card-button"
+                  onClick={() => openTransactionEditor(transaction.id)}
+                  type="button"
+                >
+                  <div className="stack gap-xs">
                     <strong>{transaction.title}</strong>
                     <span className="muted-text">
                       {transaction.category} - {formatDateLabel(transaction.date)}
                     </span>
+                    <span className="muted-text">{getAccountLabel(transaction.accountId)}</span>
                   </div>
                   <strong className={transaction.type === 'income' ? 'positive' : 'negative'}>
                     {formatCurrency(transaction.amount, transaction.currency)}
                   </strong>
-                </div>
+                </button>
               ))
             ) : (
               <div className="empty-state">
@@ -410,6 +467,117 @@ export function MoneyPage() {
           </div>
         </article>
       </section>
+
+      {selectedTransaction ? (
+        <div className="modal-backdrop" onClick={() => setSelectedTransactionId(null)} role="presentation">
+          <div className="modal-card" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="panel-heading">
+              <div>
+                <p className="muted-label">Modifica movimento</p>
+                <h2>{selectedTransaction.title}</h2>
+              </div>
+              <button className="ghost-button" onClick={() => setSelectedTransactionId(null)} type="button">
+                Chiudi
+              </button>
+            </div>
+
+            <form
+              className="stack gap-md"
+              onSubmit={(event) => {
+                event.preventDefault()
+                updateTransaction(selectedTransaction.id, {
+                  title: editForm.title,
+                  category: editForm.category,
+                  amount: safeNumber(editForm.amount),
+                  currency: editForm.currency,
+                  date: editForm.date,
+                  type: editForm.type,
+                  accountId: editForm.accountId,
+                })
+                setSelectedTransactionId(null)
+              }}
+            >
+              <input
+                className="input"
+                value={editForm.title}
+                onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))}
+              />
+              <div className="grid split-grid">
+                <select
+                  className="input"
+                  value={editForm.category}
+                  onChange={(event) => setEditForm((current) => ({ ...current, category: event.target.value }))}
+                >
+                  {transactionCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  className="input"
+                  type="number"
+                  value={editForm.amount}
+                  onChange={(event) => setEditForm((current) => ({ ...current, amount: event.target.value }))}
+                />
+              </div>
+              <div className="grid split-grid">
+                <select
+                  className="input"
+                  value={editForm.currency}
+                  onChange={(event) =>
+                    setEditForm((current) => ({ ...current, currency: event.target.value as typeof baseCurrency }))
+                  }
+                >
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                  <option value="GBP">GBP</option>
+                  <option value="JPY">JPY</option>
+                  <option value="CHF">CHF</option>
+                  <option value="CAD">CAD</option>
+                </select>
+                <select
+                  className="input"
+                  value={editForm.type}
+                  onChange={(event) =>
+                    setEditForm((current) => ({ ...current, type: event.target.value as 'income' | 'expense' }))
+                  }
+                >
+                  <option value="expense">Spesa</option>
+                  <option value="income">Entrata</option>
+                </select>
+              </div>
+              <div className="grid split-grid">
+                <input
+                  className="input"
+                  type="date"
+                  value={editForm.date}
+                  onChange={(event) => setEditForm((current) => ({ ...current, date: event.target.value }))}
+                />
+                <select
+                  className="input"
+                  value={editForm.accountId}
+                  onChange={(event) => setEditForm((current) => ({ ...current, accountId: event.target.value }))}
+                >
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.institution} · {account.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="transaction-actions">
+                <button className="primary-button" type="submit">
+                  Salva modifica
+                </button>
+                <button className="ghost-button" onClick={() => setSelectedTransactionId(null)} type="button">
+                  Annulla
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
