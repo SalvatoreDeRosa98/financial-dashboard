@@ -9,15 +9,27 @@ const pageMeta: Record<string, { title: string; subtitle: string }> = {
     title: 'Home',
     subtitle: 'Panoramica giornaliera di patrimonio, liquidita, investimenti e flussi principali.',
   },
+  '/month': {
+    title: 'Mese',
+    subtitle: 'Entrate, spese, saldo e lettura operativa del mese selezionato.',
+  },
+  '/transactions': {
+    title: 'Movimenti',
+    subtitle: 'Registrazione, ricerca, filtri e modifica completa dello storico.',
+  },
   '/accounts': {
-    title: 'Denaro',
-    subtitle: 'Conti operativi, movimenti, budget e analisi mensile in un unico spazio.',
+    title: 'Conti',
+    subtitle: 'Gestione dei conti operativi, dei saldi e delle istituzioni collegate.',
+  },
+  '/budget': {
+    title: 'Budget',
+    subtitle: 'Soglie mensili, residuo disponibile e copertura delle spese ricorrenti.',
   },
   '/investments': {
     title: 'Portafoglio',
     subtitle: 'Posizioni aperte, performance, note operative e liquidita broker.',
   },
-  '/expenses': {
+  '/markets': {
     title: 'Mercati',
     subtitle: 'Indici, watchlist e segnali di mercato da monitorare.',
   },

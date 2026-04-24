@@ -3,9 +3,12 @@ import { ThemeToggle } from './ThemeToggle'
 
 const navItems = [
   { to: '/overview', label: 'Home', icon: 'HM' },
-  { to: '/accounts', label: 'Denaro', icon: 'CA' },
+  { to: '/month', label: 'Mese', icon: 'MS' },
+  { to: '/transactions', label: 'Movimenti', icon: 'MV' },
+  { to: '/accounts', label: 'Conti', icon: 'CA' },
+  { to: '/budget', label: 'Budget', icon: 'BG' },
   { to: '/investments', label: 'Portafoglio', icon: 'PF' },
-  { to: '/expenses', label: 'Mercati', icon: 'MK' },
+  { to: '/markets', label: 'Mercati', icon: 'MK' },
   { to: '/fx', label: 'Valute', icon: 'FX' },
   { to: '/calendar', label: 'Ricorrenze', icon: 'RC' },
   { to: '/reports', label: 'Report', icon: 'RP' },
@@ -46,7 +49,7 @@ export function Sidebar() {
       <div className="sidebar-footer">
         <div className="sidebar-card">
           <p>Workspace</p>
-          <strong>Conti, ricorrenze, portafoglio e report nello stesso spazio</strong>
+          <strong>Mese, movimenti, conti, budget, ricorrenze e portafoglio</strong>
         </div>
         <ThemeToggle />
       </div>

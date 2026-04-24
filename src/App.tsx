@@ -8,8 +8,17 @@ import { OnboardingPage } from './pages/Onboarding'
 const OverviewPage = lazy(() =>
   import('./pages/Home').then((module) => ({ default: module.HomePage })),
 )
+const MonthPage = lazy(() =>
+  import('./pages/Month').then((module) => ({ default: module.MonthPage })),
+)
+const TransactionsPage = lazy(() =>
+  import('./pages/Transactions').then((module) => ({ default: module.TransactionsPage })),
+)
 const AccountsPage = lazy(() =>
-  import('./pages/Money').then((module) => ({ default: module.MoneyPage })),
+  import('./pages/Accounts').then((module) => ({ default: module.AccountsPage })),
+)
+const BudgetPage = lazy(() =>
+  import('./pages/Budget').then((module) => ({ default: module.BudgetPage })),
 )
 const InvestmentsPage = lazy(() =>
   import('./pages/Portfolio').then((module) => ({ default: module.PortfolioPage })),
@@ -43,12 +52,16 @@ function AppContent() {
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<OverviewPage />} />
+            <Route path="/month" element={<MonthPage />} />
+            <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/budget" element={<BudgetPage />} />
             <Route path="/investments" element={<InvestmentsPage />} />
-            <Route path="/expenses" element={<MarketsPage />} />
+            <Route path="/markets" element={<MarketsPage />} />
             <Route path="/fx" element={<FxPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/expenses" element={<Navigate to="/markets" replace />} />
           </Route>
         </Routes>
       </Suspense>
