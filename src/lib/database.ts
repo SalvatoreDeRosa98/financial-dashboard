@@ -1,7 +1,12 @@
-import { createStarterFinanceState, defaultFinanceState, type FinanceState } from '../data/state'
+import {
+  createStarterFinanceState,
+  defaultFinanceState,
+  normalizeFinanceState,
+  type FinanceState,
+} from '../data/state'
 
 const DB_NAME = 'financial-dashboard-db'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 const LEGACY_STATE_KEY = 'fintracker-pro-state-v2'
 const LEGACY_USER_NAME_KEY = 'fintracker-user-name'
@@ -9,11 +14,14 @@ const LEGACY_USER_NAME_KEY = 'fintracker-user-name'
 const DATA_STORES = [
   'accounts',
   'budgets',
+  'categories',
   'transactions',
   'recurringExpenses',
   'positions',
   'watchlist',
   'calendarItems',
+  'goals',
+  'liabilities',
   'taxCredits',
   'strategyTargets',
 ] as const
@@ -62,11 +70,14 @@ function openFinanceDatabase() {
       const storesWithIdKey = [
         'accounts',
         'budgets',
+        'categories',
         'transactions',
         'recurringExpenses',
         'positions',
         'watchlist',
         'calendarItems',
+        'goals',
+        'liabilities',
         'taxCredits',
       ]
 
@@ -101,7 +112,7 @@ function buildStateFromLegacyStorage(rawState: string | null) {
   }
 
   try {
-    return { ...createStarterFinanceState(), ...JSON.parse(rawState) } as FinanceState
+    return normalizeFinanceState({ ...createStarterFinanceState(), ...JSON.parse(rawState) } as FinanceState)
   } catch {
     return createStarterFinanceState()
   }
@@ -118,6 +129,8 @@ function shouldUseStarterState(state: FinanceState) {
     state.positions.length === 0 &&
     state.watchlist.length === 0 &&
     state.calendarItems.length === 0 &&
+    state.goals.length === 0 &&
+    state.liabilities.length === 0 &&
     state.taxCredits.length === 0
 
   const hasNoOperationalScaffold = state.accounts.length === 0 && state.budgets.length === 0
@@ -126,7 +139,10 @@ function shouldUseStarterState(state: FinanceState) {
 }
 
 function normalizeBootstrapState(state: FinanceState) {
-  return shouldUseStarterState(state) ? createStarterFinanceState(state.baseCurrency) : state
+  const normalizedState = normalizeFinanceState(state)
+  return shouldUseStarterState(normalizedState)
+    ? createStarterFinanceState(normalizedState.baseCurrency)
+    : normalizedState
 }
 
 function clearLegacyStorage() {
@@ -145,11 +161,14 @@ async function readStoredData() {
   const [
     accounts,
     budgets,
+    categories,
     transactions,
     recurringExpenses,
     positions,
     watchlist,
     calendarItems,
+    goals,
+    liabilities,
     taxCredits,
     strategyTargets,
     baseCurrencyEntry,
@@ -157,11 +176,14 @@ async function readStoredData() {
   ] = await Promise.all([
     requestToPromise(transaction.objectStore('accounts').getAll()),
     requestToPromise(transaction.objectStore('budgets').getAll()),
+    requestToPromise(transaction.objectStore('categories').getAll()),
     requestToPromise(transaction.objectStore('transactions').getAll()),
     requestToPromise(transaction.objectStore('recurringExpenses').getAll()),
     requestToPromise(transaction.objectStore('positions').getAll()),
     requestToPromise(transaction.objectStore('watchlist').getAll()),
     requestToPromise(transaction.objectStore('calendarItems').getAll()),
+    requestToPromise(transaction.objectStore('goals').getAll()),
+    requestToPromise(transaction.objectStore('liabilities').getAll()),
     requestToPromise(transaction.objectStore('taxCredits').getAll()),
     requestToPromise(transaction.objectStore('strategyTargets').getAll()),
     requestToPromise(transaction.objectStore('meta').get('baseCurrency')),
@@ -173,11 +195,14 @@ async function readStoredData() {
   const hasRecords =
     accounts.length > 0 ||
     budgets.length > 0 ||
+    categories.length > 0 ||
     transactions.length > 0 ||
     recurringExpenses.length > 0 ||
     positions.length > 0 ||
     watchlist.length > 0 ||
     calendarItems.length > 0 ||
+    goals.length > 0 ||
+    liabilities.length > 0 ||
     taxCredits.length > 0 ||
     strategyTargets.length > 0 ||
     Boolean(baseCurrencyEntry) ||
@@ -192,11 +217,14 @@ async function readStoredData() {
       baseCurrency: (baseCurrencyEntry as MetaEntry<FinanceState['baseCurrency']> | undefined)?.value ?? 'EUR',
       accounts,
       budgets,
+      categories,
       transactions,
       recurringExpenses,
       positions,
       watchlist,
       calendarItems,
+      goals,
+      liabilities,
       taxCredits,
       strategyTargets,
     } satisfies FinanceState,
@@ -212,11 +240,14 @@ export async function saveFinanceState(state: FinanceState) {
 
   replaceStore(transaction, 'accounts', state.accounts)
   replaceStore(transaction, 'budgets', state.budgets)
+  replaceStore(transaction, 'categories', state.categories)
   replaceStore(transaction, 'transactions', state.transactions)
   replaceStore(transaction, 'recurringExpenses', state.recurringExpenses)
   replaceStore(transaction, 'positions', state.positions)
   replaceStore(transaction, 'watchlist', state.watchlist)
   replaceStore(transaction, 'calendarItems', state.calendarItems)
+  replaceStore(transaction, 'goals', state.goals)
+  replaceStore(transaction, 'liabilities', state.liabilities)
   replaceStore(transaction, 'taxCredits', state.taxCredits)
   replaceStore(transaction, 'strategyTargets', state.strategyTargets)
   transaction.objectStore('meta').put({

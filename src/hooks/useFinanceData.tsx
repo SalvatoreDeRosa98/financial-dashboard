@@ -28,6 +28,8 @@ import type {
   CurrencyCode,
   ExposureItem,
   FxRateMap,
+  GoalItem,
+  LiabilityItem,
   MarketIndex,
   NewsItem,
   OpportunityItem,
@@ -37,7 +39,9 @@ import type {
   SimulatedSaleLot,
   SummaryMetric,
   TaxCreditBucket,
+  TransactionCategory,
   TransactionItem,
+  TransactionStatus,
 } from '../data/types'
 import {
   bootstrapFinanceState,
@@ -64,11 +68,19 @@ interface PositionDraft {
 interface TransactionDraft {
   title: string
   category: string
+  subcategory: string
   amount: number
   currency: CurrencyCode
   date: string
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'transfer'
   accountId: string
+  transferAccountId: string | null
+  status: TransactionStatus
+  tags: string[]
+  notes: string
+  attachmentName: string
+  attachmentUrl: string
+  linkedRecurringExpenseId?: string | null
 }
 
 interface RecurringExpenseDraft {
@@ -79,6 +91,29 @@ interface RecurringExpenseDraft {
   frequency: RecurringExpenseItem['frequency']
   nextDate: string
   notes: string
+  kind: 'mandatory' | 'optional'
+}
+
+interface CategoryDraft {
+  name: string
+  type: TransactionCategory['type']
+  subcategories: string[]
+  color: string
+}
+
+interface GoalDraft {
+  title: string
+  category: string
+  target: number
+  current: number
+  dueDate: string
+}
+
+interface LiabilityDraft {
+  title: string
+  balance: number
+  dueDate: string
+  kind: LiabilityItem['kind']
 }
 
 interface WatchlistDraft {
@@ -170,19 +205,27 @@ interface FinanceContextValue extends FinanceState {
   addAccount: () => void
   addTransaction: (input: TransactionDraft) => void
   updateTransaction: (id: string, input: TransactionDraft) => void
+  duplicateTransaction: (id: string) => void
   updateBudget: (id: string, budget: number) => void
   updateAccount: (
     id: string,
-    patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance'>>,
+    patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance' | 'kind'>>,
   ) => void
+  addCategory: (input: CategoryDraft) => void
+  updateCategory: (id: string, patch: Partial<Pick<TransactionCategory, 'name' | 'subcategories' | 'color'>>) => void
   addRecurringExpense: (input: RecurringExpenseDraft) => void
   updateRecurringExpense: (
     id: string,
     patch: Partial<
-      Pick<RecurringExpenseItem, 'title' | 'category' | 'amount' | 'currency' | 'frequency' | 'nextDate' | 'notes' | 'active'>
+      Pick<RecurringExpenseItem, 'title' | 'category' | 'amount' | 'currency' | 'frequency' | 'nextDate' | 'notes' | 'active' | 'kind'>
     >,
   ) => void
   removeRecurringExpense: (id: string) => void
+  recordRecurringExpense: (id: string, accountId?: string) => void
+  addGoal: (input: GoalDraft) => void
+  updateGoal: (id: string, patch: Partial<Omit<GoalItem, 'id'>>) => void
+  addLiability: (input: LiabilityDraft) => void
+  updateLiability: (id: string, patch: Partial<Omit<LiabilityItem, 'id'>>) => void
   addPosition: (input: PositionDraft) => Promise<void>
   updatePositionPrice: (id: string, price: number) => void
   addWatchlistItem: (input: WatchlistDraft) => void
@@ -288,15 +331,96 @@ function normalizeTransactionDraft(input: TransactionDraft) {
   return {
     ...input,
     amount: Math.abs(input.amount),
+    subcategory: input.subcategory.trim(),
+    transferAccountId: input.type === 'transfer' ? input.transferAccountId : null,
+    status: input.status ?? (isEffectiveTransactionDate(input.date) ? 'paid' : 'planned'),
+    tags: input.tags.map((tag) => tag.trim()).filter(Boolean),
+    notes: input.notes.trim(),
+    attachmentName: input.attachmentName ?? '',
+    attachmentUrl: input.attachmentUrl ?? '',
+    linkedRecurringExpenseId: input.linkedRecurringExpenseId ?? null,
   }
-}
-
-function transactionAccountDelta(transaction: Pick<TransactionItem, 'amount' | 'type'>) {
-  return transaction.type === 'expense' ? -Math.abs(transaction.amount) : Math.abs(transaction.amount)
 }
 
 function transactionBudgetDelta(transaction: Pick<TransactionItem, 'amount' | 'type'>) {
   return transaction.type === 'expense' ? Math.abs(transaction.amount) : 0
+}
+
+function affectsCurrentBalance(transaction: Pick<TransactionItem, 'date' | 'status'>) {
+  return isEffectiveTransactionDate(transaction.date) && transaction.status !== 'planned'
+}
+
+function applyTransactionToAccounts(
+  accounts: AccountItem[],
+  transaction: Pick<TransactionItem, 'accountId' | 'amount' | 'type' | 'transferAccountId'>,
+  direction: 1 | -1,
+) {
+  return accounts.map((account) => {
+    let nextBalance = account.balance
+
+    if (account.id === transaction.accountId) {
+      if (transaction.type === 'expense') {
+        nextBalance += direction * -Math.abs(transaction.amount)
+      } else if (transaction.type === 'income') {
+        nextBalance += direction * Math.abs(transaction.amount)
+      } else if (transaction.type === 'transfer') {
+        nextBalance += direction * -Math.abs(transaction.amount)
+      }
+    }
+
+    if (
+      transaction.type === 'transfer' &&
+      transaction.transferAccountId &&
+      account.id === transaction.transferAccountId
+    ) {
+      nextBalance += direction * Math.abs(transaction.amount)
+    }
+
+    return nextBalance === account.balance ? account : { ...account, balance: nextBalance }
+  })
+}
+
+function ensureCategoryStructures(
+  categories: TransactionCategory[],
+  budgets: FinanceState['budgets'],
+  transaction: TransactionDraft,
+) {
+  if (transaction.type === 'transfer' || !transaction.category.trim()) {
+    return { categories, budgets }
+  }
+
+  const hasCategory = categories.some(
+    (category) => category.type === transaction.type && category.name === transaction.category,
+  )
+
+  if (hasCategory) {
+    return { categories, budgets }
+  }
+
+  const nextCategory: TransactionCategory = {
+    id: createId('cat'),
+    name: transaction.category,
+    type: transaction.type,
+    subcategories: transaction.subcategory ? [transaction.subcategory] : [],
+    color: transaction.type === 'income' ? '#14b8a6' : '#38bdf8',
+  }
+
+  return {
+    categories: [...categories, nextCategory].sort((left, right) => left.name.localeCompare(right.name)),
+    budgets:
+      transaction.type === 'expense'
+        ? [
+            ...budgets,
+            {
+              id: createId('budget'),
+              name: transaction.category,
+              spent: 0,
+              budget: 0,
+              color: nextCategory.color,
+            },
+          ]
+        : budgets,
+  }
 }
 
 export function FinanceDataProvider({ children }: PropsWithChildren) {
@@ -458,13 +582,24 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
   const summaryMetrics = useMemo<SummaryMetric[]>(() => {
     const currentMonth = new Date().getMonth()
     const currentYear = new Date().getFullYear()
-    const hasTrackedData =
-      state.transactions.length > 0 ||
-      state.positions.length > 0 ||
-      state.accounts.some((account) => account.balance !== 0)
     const currentMonthTransactions = state.transactions.filter((item) => {
       const date = new Date(item.date)
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear
+      return (
+        item.type !== 'transfer' &&
+        affectsCurrentBalance(item) &&
+        date.getMonth() === currentMonth &&
+        date.getFullYear() === currentYear
+      )
+    })
+    const previousMonthDate = new Date(currentYear, currentMonth - 1, 1)
+    const previousMonthTransactions = state.transactions.filter((item) => {
+      const date = new Date(item.date)
+      return (
+        item.type !== 'transfer' &&
+        affectsCurrentBalance(item) &&
+        date.getMonth() === previousMonthDate.getMonth() &&
+        date.getFullYear() === previousMonthDate.getFullYear()
+      )
     })
     const income = currentMonthTransactions
       .filter((item) => item.type === 'income')
@@ -483,39 +618,52 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
           0,
         ),
     )
+    const previousNet = previousMonthTransactions.reduce((sum, item) => {
+      const amountBase = convertWithEuroBaseRates(
+        item.amount,
+        item.currency,
+        state.baseCurrency,
+        fxRates,
+      )
+      return item.type === 'income' ? sum + amountBase : sum - Math.abs(amountBase)
+    }, 0)
+    const currentNet = income - expenses
+    const monthlyChangePct = previousNet !== 0 ? ((currentNet - previousNet) / Math.abs(previousNet)) * 100 : 0
 
     return [
       {
         label: 'Patrimonio totale',
         value: totalLiquidBase + basePortfolioValue,
-        change: hasTrackedData ? 4.2 : 0,
+        change: 0,
         accent: 'teal',
       },
       {
         label: 'Liquidita disponibile',
         value: totalLiquidBase,
-        change: hasTrackedData ? 2.1 : 0,
+        change: 0,
         accent: 'blue',
       },
       {
         label: 'Portafoglio investito',
         value: basePortfolioValue,
-        change: hasTrackedData ? 7.1 : 0,
+        change: 0,
         accent: 'violet',
       },
       {
         label: 'Crescita mensile',
-        value: income - expenses,
-        change: hasTrackedData ? 2.8 : 0,
+        value: currentNet,
+        change: monthlyChangePct,
         accent: 'amber',
       },
     ]
-  }, [basePortfolioValue, fxRates, state.accounts, state.baseCurrency, state.positions, state.transactions, totalLiquidBase])
+  }, [basePortfolioValue, fxRates, state.baseCurrency, state.transactions, totalLiquidBase])
 
   const cashflowSeries = useMemo<CashflowPoint[]>(() => {
     const grouped = new Map<string, CashflowPoint>()
 
     for (const transaction of state.transactions) {
+      if (transaction.type === 'transfer' || !affectsCurrentBalance(transaction)) continue
+
       const key = monthKey(transaction.date)
       const current = grouped.get(key) ?? {
         month: monthLabelFromKey(key),
@@ -545,12 +693,15 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
 
     return Array.from(grouped.entries())
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([, value], index, all) => ({
-        ...value,
-        netWorth:
-          summaryMetrics[0].value - (all.length - index - 1) * 3800 + value.income - value.expenses,
-      }))
-  }, [fxRates, state.baseCurrency, state.transactions, summaryMetrics])
+      .reduce<CashflowPoint[]>((acc, [, value]) => {
+        const previousNetWorth = acc.at(-1)?.netWorth ?? 0
+        acc.push({
+          ...value,
+          netWorth: previousNetWorth + value.income - value.expenses,
+        })
+        return acc
+      }, [])
+  }, [fxRates, state.baseCurrency, state.transactions])
 
   const portfolioTimeline = useMemo(() => {
     const grouped = new Map<string, number>()
@@ -754,6 +905,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
             institution: 'Nuovo istituto',
             balance: 0,
             currency: current.baseCurrency,
+            kind: 'checking',
             tone: ACCOUNT_TONES[current.accounts.length % ACCOUNT_TONES.length],
             editable: true,
           },
@@ -762,46 +914,100 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     })
   }
 
-  const addTransaction = (input: TransactionDraft) => {
-    const normalizedInput = normalizeTransactionDraft(input)
-    const shouldApplyNow = isEffectiveTransactionDate(normalizedInput.date)
-
+  const addCategory = (input: CategoryDraft) => {
     setState((current) => ({
       ...current,
-      transactions: [{ id: createId('tx'), ...normalizedInput }, ...current.transactions].sort((a, b) =>
-        b.date.localeCompare(a.date),
-      ),
+      categories: [
+        ...current.categories,
+        {
+          id: createId('cat'),
+          name: input.name.trim() || 'Nuova categoria',
+          type: input.type,
+          subcategories: input.subcategories.filter(Boolean),
+          color: input.color,
+        },
+      ].sort((left, right) => left.name.localeCompare(right.name)),
       budgets:
-        shouldApplyNow && normalizedInput.type === 'expense'
-          ? current.budgets.map((budget) =>
-              budget.name === normalizedInput.category
-                ? {
-                    ...budget,
-                    spent:
-                      budget.spent +
-                      Math.abs(
-                        convertWithEuroBaseRates(
-                          normalizedInput.amount,
-                          normalizedInput.currency,
-                          current.baseCurrency,
-                          fxRates,
-                        ),
-                      ),
-                  }
-                : budget,
-            )
+        input.type === 'expense'
+          ? [
+              ...current.budgets,
+              {
+                id: createId('budget'),
+                name: input.name.trim() || 'Nuova categoria',
+                spent: 0,
+                budget: 0,
+                color: input.color,
+              },
+            ]
           : current.budgets,
-      accounts: shouldApplyNow
-        ? current.accounts.map((account) =>
-            account.id === normalizedInput.accountId
-              ? {
-                  ...account,
-                  balance: account.balance + transactionAccountDelta(normalizedInput),
-                }
-              : account,
-          )
-        : current.accounts,
     }))
+  }
+
+  const updateCategory = (
+    id: string,
+    patch: Partial<Pick<TransactionCategory, 'name' | 'subcategories' | 'color'>>,
+  ) => {
+    setState((current) => ({
+      ...current,
+      categories: current.categories.map((category) =>
+        category.id === id
+          ? {
+              ...category,
+              ...patch,
+              name: patch.name?.trim() || category.name,
+              subcategories: patch.subcategories
+                ? patch.subcategories.map((entry) => entry.trim()).filter(Boolean)
+                : category.subcategories,
+            }
+          : category,
+      ),
+      budgets: current.budgets.map((budget) => {
+        const category = current.categories.find((item) => item.id === id)
+        return category && budget.name === category.name
+          ? { ...budget, name: patch.name?.trim() || budget.name, color: patch.color ?? budget.color }
+          : budget
+      }),
+    }))
+  }
+
+  const addTransaction = (input: TransactionDraft) => {
+    const normalizedInput = normalizeTransactionDraft(input)
+    const shouldApplyNow = affectsCurrentBalance(normalizedInput)
+
+    setState((current) => {
+      const ensured = ensureCategoryStructures(current.categories, current.budgets, normalizedInput)
+
+      return {
+        ...current,
+        categories: ensured.categories,
+        transactions: [{ id: createId('tx'), ...normalizedInput }, ...current.transactions].sort((a, b) =>
+          b.date.localeCompare(a.date),
+        ),
+        budgets:
+          shouldApplyNow && normalizedInput.type === 'expense'
+            ? ensured.budgets.map((budget) =>
+                budget.name === normalizedInput.category
+                  ? {
+                      ...budget,
+                      spent:
+                        budget.spent +
+                        Math.abs(
+                          convertWithEuroBaseRates(
+                            normalizedInput.amount,
+                            normalizedInput.currency,
+                            current.baseCurrency,
+                            fxRates,
+                          ),
+                        ),
+                    }
+                  : budget,
+              )
+            : ensured.budgets,
+        accounts: shouldApplyNow
+          ? applyTransactionToAccounts(current.accounts, normalizedInput, 1)
+          : current.accounts,
+      }
+    })
   }
 
   const updateTransaction = (id: string, input: TransactionDraft) => {
@@ -814,8 +1020,8 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
         return current
       }
 
-      const previousApplied = isEffectiveTransactionDate(previous.date)
-      const nextApplied = isEffectiveTransactionDate(normalizedInput.date)
+      const previousApplied = affectsCurrentBalance(previous)
+      const nextApplied = affectsCurrentBalance(normalizedInput)
 
       const previousBudgetDelta = Math.abs(
         convertWithEuroBaseRates(
@@ -833,28 +1039,25 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
           fxRates,
         ),
       )
+      const ensured = ensureCategoryStructures(current.categories, current.budgets, normalizedInput)
 
       return {
         ...current,
+        categories: ensured.categories,
         transactions: current.transactions
           .map((transaction) => (transaction.id === id ? { id, ...normalizedInput } : transaction))
           .sort((left, right) => right.date.localeCompare(left.date)),
-        accounts: current.accounts.map((account) => {
-          let nextBalance = account.balance
-
-          if (previousApplied && account.id === previous.accountId) {
-            nextBalance -= transactionAccountDelta(previous)
+        accounts: (() => {
+          let nextAccounts = current.accounts
+          if (previousApplied) {
+            nextAccounts = applyTransactionToAccounts(nextAccounts, previous, -1)
           }
-
-          if (nextApplied && account.id === normalizedInput.accountId) {
-            nextBalance += transactionAccountDelta(normalizedInput)
+          if (nextApplied) {
+            nextAccounts = applyTransactionToAccounts(nextAccounts, normalizedInput, 1)
           }
-
-          return account.id === previous.accountId || account.id === normalizedInput.accountId
-            ? { ...account, balance: nextBalance }
-            : account
-        }),
-        budgets: current.budgets.map((budget) => {
+          return nextAccounts
+        })(),
+        budgets: ensured.budgets.map((budget) => {
           let nextSpent = budget.spent
 
           if (previousApplied && previous.type === 'expense' && budget.name === previous.category) {
@@ -869,6 +1072,59 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
             ? { ...budget, spent: nextSpent }
             : budget
         }),
+      }
+    })
+  }
+
+  const duplicateTransaction = (id: string) => {
+    setState((current) => {
+      const source = current.transactions.find((transaction) => transaction.id === id)
+      if (!source) return current
+
+      const cloned = normalizeTransactionDraft({
+        title: `${source.title} copia`,
+        category: source.category,
+        subcategory: source.subcategory ?? '',
+        amount: source.amount,
+        currency: source.currency,
+        date: todayDateKey(),
+        type: source.type,
+        accountId: source.accountId,
+        transferAccountId: source.transferAccountId ?? null,
+        status: 'paid',
+        tags: source.tags ?? [],
+        notes: source.notes ?? '',
+        attachmentName: source.attachmentName ?? '',
+        attachmentUrl: source.attachmentUrl ?? '',
+        linkedRecurringExpenseId: source.linkedRecurringExpenseId ?? null,
+      })
+
+      return {
+        ...current,
+        transactions: [{ id: createId('tx'), ...cloned }, ...current.transactions].sort((a, b) =>
+          b.date.localeCompare(a.date),
+        ),
+        budgets:
+          cloned.type === 'expense'
+            ? current.budgets.map((budget) =>
+                budget.name === cloned.category
+                  ? {
+                      ...budget,
+                      spent:
+                        budget.spent +
+                        Math.abs(
+                          convertWithEuroBaseRates(
+                            cloned.amount,
+                            cloned.currency,
+                            current.baseCurrency,
+                            fxRates,
+                          ),
+                        ),
+                    }
+                  : budget,
+              )
+            : current.budgets,
+        accounts: applyTransactionToAccounts(current.accounts, cloned, 1),
       }
     })
   }
@@ -888,7 +1144,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     patch: Partial<
       Pick<
         RecurringExpenseItem,
-        'title' | 'category' | 'amount' | 'currency' | 'frequency' | 'nextDate' | 'notes' | 'active'
+        'title' | 'category' | 'amount' | 'currency' | 'frequency' | 'nextDate' | 'notes' | 'active' | 'kind'
       >
     >,
   ) => {
@@ -907,6 +1163,60 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     }))
   }
 
+  const recordRecurringExpense = (id: string, accountId?: string) => {
+    setState((current) => {
+      const expense = current.recurringExpenses.find((item) => item.id === id)
+      if (!expense) return current
+
+      const targetAccountId = accountId ?? current.accounts[0]?.id
+      if (!targetAccountId) return current
+
+      const transactionDraft = normalizeTransactionDraft({
+        title: expense.title,
+        category: expense.category,
+        subcategory: '',
+        amount: expense.amount,
+        currency: expense.currency,
+        date: expense.nextDate <= todayDateKey() ? expense.nextDate : todayDateKey(),
+        type: 'expense',
+        accountId: targetAccountId,
+        transferAccountId: null,
+        status: 'paid',
+        tags: ['ricorrenza', expense.kind ?? 'mandatory'],
+        notes: expense.notes,
+        attachmentName: '',
+        attachmentUrl: '',
+        linkedRecurringExpenseId: expense.id,
+      })
+
+      const nextDate = formatStoredDate(
+        advanceRecurringDate(parseStoredDate(expense.nextDate), expense.frequency),
+      )
+      const amountBase = Math.abs(
+        convertWithEuroBaseRates(
+          transactionDraft.amount,
+          transactionDraft.currency,
+          current.baseCurrency,
+          fxRates,
+        ),
+      )
+
+      return {
+        ...current,
+        transactions: [{ id: createId('tx'), ...transactionDraft }, ...current.transactions].sort((a, b) =>
+          b.date.localeCompare(a.date),
+        ),
+        recurringExpenses: current.recurringExpenses
+          .map((item) => (item.id === id ? { ...item, nextDate } : item))
+          .sort((left, right) => left.nextDate.localeCompare(right.nextDate)),
+        budgets: current.budgets.map((budget) =>
+          budget.name === transactionDraft.category ? { ...budget, spent: budget.spent + amountBase } : budget,
+        ),
+        accounts: applyTransactionToAccounts(current.accounts, transactionDraft, 1),
+      }
+    })
+  }
+
   const updateBudget = (id: string, budget: number) => {
     setState((current) => ({
       ...current,
@@ -916,12 +1226,46 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
 
   const updateAccount = (
     id: string,
-    patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance'>>,
+    patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance' | 'kind'>>,
   ) => {
     setState((current) => ({
       ...current,
       accounts: current.accounts.map((account) =>
         account.id === id && account.editable ? { ...account, ...patch } : account,
+      ),
+    }))
+  }
+
+  const addGoal = (input: GoalDraft) => {
+    setState((current) => ({
+      ...current,
+      goals: [{ id: createId('goal'), ...input }, ...current.goals].sort((left, right) =>
+        left.dueDate.localeCompare(right.dueDate),
+      ),
+    }))
+  }
+
+  const updateGoal = (id: string, patch: Partial<Omit<GoalItem, 'id'>>) => {
+    setState((current) => ({
+      ...current,
+      goals: current.goals.map((goal) => (goal.id === id ? { ...goal, ...patch } : goal)),
+    }))
+  }
+
+  const addLiability = (input: LiabilityDraft) => {
+    setState((current) => ({
+      ...current,
+      liabilities: [{ id: createId('liab'), ...input }, ...current.liabilities].sort((left, right) =>
+        left.dueDate.localeCompare(right.dueDate),
+      ),
+    }))
+  }
+
+  const updateLiability = (id: string, patch: Partial<Omit<LiabilityItem, 'id'>>) => {
+    setState((current) => ({
+      ...current,
+      liabilities: current.liabilities.map((liability) =>
+        liability.id === id ? { ...liability, ...patch } : liability,
       ),
     }))
   }
@@ -1128,11 +1472,19 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     addAccount,
     addTransaction,
     updateTransaction,
+    duplicateTransaction,
     updateBudget,
     updateAccount,
+    addCategory,
+    updateCategory,
     addRecurringExpense,
     updateRecurringExpense,
     removeRecurringExpense,
+    recordRecurringExpense,
+    addGoal,
+    updateGoal,
+    addLiability,
+    updateLiability,
     addPosition,
     updatePositionPrice,
     addWatchlistItem,

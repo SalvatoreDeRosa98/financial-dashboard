@@ -1,8 +1,6 @@
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -10,7 +8,16 @@ import {
   YAxis,
 } from 'recharts'
 import { useFinanceData } from '../hooks/useFinanceData'
-import { formatCompactCurrency, formatCurrency, formatDateLabel, formatSignedPercent } from '../lib/utils'
+import { convertWithEuroBaseRates, formatCompactCurrency, formatCurrency, formatDateLong } from '../lib/utils'
+
+function todayKey() {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+}
+
+function currentMonthKey() {
+  return todayKey().slice(0, 7)
+}
 
 export function HomePage() {
   const {
@@ -18,43 +25,79 @@ export function HomePage() {
     baseCurrency,
     basePortfolioValue,
     cashflowSeries,
+    fxRates,
+    goals,
+    liabilities,
     marketIndices,
-    summaryMetrics,
+    recurringExpenseForecast,
     totalLiquidBase,
     transactions,
   } = useFinanceData()
 
-  const wealthMix = [
-    { label: 'Liquidita', value: totalLiquidBase },
-    { label: 'Investito', value: basePortfolioValue },
-  ]
-  const metricDescriptions: Record<string, string> = {
-    'Patrimonio totale': 'Valore aggregato di liquidita e portafoglio convertito nella valuta base.',
-    'Liquidita disponibile': 'Disponibilita immediata su conti correnti, deposito e broker.',
-    'Portafoglio investito': 'Controvalore aggiornato delle posizioni finanziarie aperte.',
-    'Crescita mensile': 'Saldo netto del mese tra entrate registrate e uscite contabilizzate.',
-  }
+  const currentMonth = currentMonthKey()
+  const monthTransactions = transactions.filter(
+    (item) => item.date.startsWith(currentMonth) && item.type !== 'transfer',
+  )
+  const incomeMonth = monthTransactions
+    .filter((item) => item.type === 'income' && (item.status ?? 'paid') !== 'planned')
+    .reduce((sum, item) => sum + convertWithEuroBaseRates(item.amount, item.currency, baseCurrency, fxRates), 0)
+  const expenseMonth = monthTransactions
+    .filter((item) => item.type === 'expense' && (item.status ?? 'paid') !== 'planned')
+    .reduce((sum, item) => sum + convertWithEuroBaseRates(item.amount, item.currency, baseCurrency, fxRates), 0)
+  const plannedMonthDelta = monthTransactions
+    .filter((item) => (item.status ?? 'paid') === 'planned')
+    .reduce((sum, item) => {
+      const amountBase = convertWithEuroBaseRates(item.amount, item.currency, baseCurrency, fxRates)
+      if (item.type === 'income') return sum + amountBase
+      if (item.type === 'expense') return sum - amountBase
+      return sum
+    }, 0)
+  const endOfMonthProjectedBalance = totalLiquidBase + plannedMonthDelta - recurringExpenseForecast.next30DaysBase
+  const totalLiabilities = liabilities.reduce((sum, item) => sum + item.balance, 0)
+  const netWorth = totalLiquidBase + basePortfolioValue - totalLiabilities
+  const savingsRate = incomeMonth > 0 ? ((incomeMonth - expenseMonth) / incomeMonth) * 100 : 0
+  const essentialMonthlyBase = Math.max(recurringExpenseForecast.monthlyRequiredBase, 1)
+  const runwayMonths = totalLiquidBase > 0 ? totalLiquidBase / essentialMonthlyBase : 0
+  const safeToSpend = Math.max(incomeMonth - expenseMonth - recurringExpenseForecast.monthlyRequiredBase, 0)
+
   return (
     <div className="stack gap-lg">
       <section className="grid metrics-grid">
-        {summaryMetrics.map((metric) => (
-          <article key={metric.label} className={`panel metric-card metric-${metric.accent}`}>
-            <p className="muted-label">{metric.label}</p>
-            <strong>{formatCurrency(metric.value, baseCurrency)}</strong>
-            <span className={metric.change >= 0 ? 'positive' : 'negative'}>
-              {formatSignedPercent(metric.change)}
-            </span>
-            <span className="metric-caption">{metricDescriptions[metric.label]}</span>
-          </article>
-        ))}
+        <article className="panel metric-card metric-teal">
+          <p className="muted-label">Liquidità reale</p>
+          <strong>{formatCurrency(totalLiquidBase, baseCurrency)}</strong>
+          <span className="muted-text">saldo attuale disponibile</span>
+        </article>
+        <article className="panel metric-card metric-blue">
+          <p className="muted-label">Entrate mese</p>
+          <strong>{formatCurrency(incomeMonth, baseCurrency)}</strong>
+          <span className="muted-text">incassi già registrati</span>
+        </article>
+        <article className="panel metric-card metric-amber">
+          <p className="muted-label">Uscite mese</p>
+          <strong>{formatCurrency(expenseMonth, baseCurrency)}</strong>
+          <span className="muted-text">spese già registrate</span>
+        </article>
+        <article className="panel metric-card metric-violet">
+          <p className="muted-label">Ricorrenti 30 giorni</p>
+          <strong>{formatCurrency(recurringExpenseForecast.next30DaysBase, baseCurrency)}</strong>
+          <span className="muted-text">fabbisogno già previsto</span>
+        </article>
+        <article className="panel metric-card metric-blue">
+          <p className="muted-label">Saldo previsto fine mese</p>
+          <strong>{formatCurrency(endOfMonthProjectedBalance, baseCurrency)}</strong>
+          <span className={endOfMonthProjectedBalance >= 0 ? 'positive' : 'negative'}>
+            attuale più pianificato
+          </span>
+        </article>
       </section>
 
       <section className="grid content-grid">
         <article className="panel span-two">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Patrimonio</p>
-              <h2>Andamento del patrimonio negli ultimi 6 mesi</h2>
+              <p className="muted-label">Flusso reale</p>
+              <h2>Andamento mensile di entrate e uscite</h2>
             </div>
           </div>
           <div className="chart-wrap">
@@ -84,7 +127,7 @@ export function HomePage() {
             ) : (
               <div className="empty-state">
                 <strong>Nessuno storico disponibile</strong>
-                <p>Il tracciamento iniziera dal primo movimento che registri.</p>
+                <p>Il tracciamento inizierà dal primo movimento che registri.</p>
               </div>
             )}
           </div>
@@ -93,33 +136,27 @@ export function HomePage() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Allocazione</p>
-              <h2>Ripartizione tra liquidita e investimenti</h2>
+              <p className="muted-label">Indicatori personali</p>
+              <h2>Tenuta finanziaria</h2>
             </div>
           </div>
-          <div className="chart-wrap compact">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={wealthMix} layout="vertical" margin={{ left: 12 }}>
-                <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => formatCompactCurrency(Number(value), baseCurrency)}
-                />
-                <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={86} />
-                <Tooltip formatter={(value) => formatCurrency(Number(value), baseCurrency)} />
-                <Bar dataKey="value" fill="#0ea5e9" radius={[0, 10, 10, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="stack gap-sm">
-            {wealthMix.map((item) => (
-              <div key={item.label} className="row-between compact-row">
-                <span>{item.label}</span>
-                <strong>{formatCurrency(item.value, baseCurrency)}</strong>
-              </div>
-            ))}
+          <div className="summary-text-list">
+            <div className="summary-text-row">
+              <span>Net worth</span>
+              <strong>{formatCurrency(netWorth, baseCurrency)}</strong>
+            </div>
+            <div className="summary-text-row">
+              <span>Safe to spend</span>
+              <strong>{formatCurrency(safeToSpend, baseCurrency)}</strong>
+            </div>
+            <div className="summary-text-row">
+              <span>Runway</span>
+              <strong>{runwayMonths.toFixed(1)} mesi</strong>
+            </div>
+            <div className="summary-text-row">
+              <span>Risparmio del mese</span>
+              <strong>{savingsRate.toFixed(1)}%</strong>
+            </div>
           </div>
         </article>
       </section>
@@ -129,9 +166,8 @@ export function HomePage() {
           <div className="panel-heading">
             <div>
               <p className="muted-label">Conti</p>
-              <h2>Saldi correnti per istituto</h2>
+              <h2>Situazione operativa</h2>
             </div>
-            <span className="small-pill">{accounts.length} conti</span>
           </div>
           <div className="stack gap-sm">
             {accounts.map((account) => (
@@ -146,33 +182,63 @@ export function HomePage() {
           </div>
         </article>
 
-        <article className="panel span-two">
+        <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Attivita recente</p>
-              <h2>Ultimi movimenti registrati</h2>
+              <p className="muted-label">Obiettivi</p>
+              <h2>Avanzamento risparmi</h2>
             </div>
-            <span className="small-pill">{transactions.slice(0, 6).length} righe</span>
           </div>
           <div className="stack gap-sm">
-            {transactions.length ? (
-              transactions.slice(0, 6).map((transaction) => (
-                <div key={transaction.id} className="list-card">
+            {goals.length ? (
+              goals.map((goal) => {
+                const progress = goal.target > 0 ? Math.min((goal.current / goal.target) * 100, 100) : 0
+                return (
+                  <div key={goal.id} className="soft-card stack gap-sm">
+                    <div className="row-between">
+                      <strong>{goal.title}</strong>
+                      <span>{formatCurrency(goal.current, baseCurrency)} / {formatCurrency(goal.target, baseCurrency)}</span>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: `${progress}%`, background: '#14b8a6' }} />
+                    </div>
+                    <small className="muted-text">scadenza {formatDateLong(goal.dueDate)}</small>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="empty-state">
+                <strong>Nessun obiettivo impostato</strong>
+                <p>Li puoi configurare nella sezione portafoglio personale.</p>
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="muted-label">Passività</p>
+              <h2>Impegni da coprire</h2>
+            </div>
+          </div>
+          <div className="stack gap-sm">
+            {liabilities.length ? (
+              liabilities.map((item) => (
+                <div key={item.id} className="list-card">
                   <div className="stack gap-xs">
-                    <strong>{transaction.title}</strong>
+                    <strong>{item.title}</strong>
                     <span className="muted-text">
-                      {transaction.category} - {formatDateLabel(transaction.date)}
+                      {item.kind} · scadenza {formatDateLong(item.dueDate)}
                     </span>
                   </div>
-                  <strong className={transaction.type === 'income' ? 'positive' : 'negative'}>
-                    {formatCurrency(transaction.amount, transaction.currency)}
-                  </strong>
+                  <strong className="negative">{formatCurrency(item.balance, baseCurrency)}</strong>
                 </div>
               ))
             ) : (
               <div className="empty-state">
-                <strong>Nessun movimento registrato</strong>
-                <p>Lo storico comparira qui quando inserirai la prima operazione.</p>
+                <strong>Nessuna passività registrata</strong>
+                <p>Carte, prestiti o imposte appariranno qui quando le aggiungi.</p>
               </div>
             )}
           </div>
@@ -192,9 +258,6 @@ export function HomePage() {
               <span>{item.region}</span>
               <strong>{item.name}</strong>
               <div className="large-value">{formatCurrency(item.price, item.currency)}</div>
-              <small className={item.change >= 0 ? 'positive' : 'negative'}>
-                {formatSignedPercent(item.change)}
-              </small>
             </article>
           ))}
         </div>

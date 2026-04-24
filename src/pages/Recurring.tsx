@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useFinanceData } from '../hooks/useFinanceData'
 import { formatCurrency, formatDateLong, safeNumber } from '../lib/utils'
 import type { CurrencyCode, RecurringExpenseItem } from '../data/types'
@@ -11,17 +11,22 @@ const frequencyLabels = {
 } as const
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10)
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 }
 
 function RecurringExpenseCard({
   expense,
   baseCurrency,
+  fallbackAccountId,
+  onRecord,
   onSave,
   onRemove,
 }: {
   expense: ReturnType<typeof useFinanceData>['recurringExpenseInsights'][number]
   baseCurrency: CurrencyCode
+  fallbackAccountId?: string
+  onRecord: (id: string, accountId?: string) => void
   onSave: (
     id: string,
     patch: Partial<{
@@ -33,6 +38,7 @@ function RecurringExpenseCard({
       nextDate: string
       notes: string
       active: boolean
+      kind: 'mandatory' | 'optional'
     }>,
   ) => void
   onRemove: (id: string) => void
@@ -53,9 +59,14 @@ function RecurringExpenseCard({
           />
           Attiva
         </label>
-        <button className="ghost-button" type="button" onClick={() => onRemove(expense.id)}>
-          Elimina
-        </button>
+        <div className="transaction-inline-actions">
+          <button className="ghost-button" type="button" onClick={() => onRecord(expense.id, fallbackAccountId)}>
+            Registra
+          </button>
+          <button className="ghost-button" type="button" onClick={() => onRemove(expense.id)}>
+            Elimina
+          </button>
+        </div>
       </div>
 
       <div className="grid split-grid">
@@ -99,7 +110,7 @@ function RecurringExpenseCard({
         </select>
       </div>
 
-      <div className="grid split-grid">
+      <div className="grid tri-grid">
         <select
           className="input"
           value={expense.frequency}
@@ -116,6 +127,14 @@ function RecurringExpenseCard({
           value={expense.nextDate}
           onChange={(event) => onSave(expense.id, { nextDate: event.target.value })}
         />
+        <select
+          className="input"
+          value={expense.kind ?? 'mandatory'}
+          onChange={(event) => onSave(expense.id, { kind: event.target.value as 'mandatory' | 'optional' })}
+        >
+          <option value="mandatory">Obbligatoria</option>
+          <option value="optional">Opzionale</option>
+        </select>
       </div>
 
       <textarea
@@ -140,7 +159,7 @@ function RecurringExpenseCard({
         <div className="soft-card">
           <span>Media mensile</span>
           <strong>{formatCurrency(expense.monthlyEquivalentBase, baseCurrency)}</strong>
-          <small>stima del fabbisogno medio</small>
+          <small>{(expense.kind ?? 'mandatory') === 'mandatory' ? 'obbligatoria' : 'opzionale'}</small>
         </div>
       </div>
     </article>
@@ -149,8 +168,10 @@ function RecurringExpenseCard({
 
 export function RecurringPage() {
   const {
+    accounts,
     addRecurringExpense,
     baseCurrency,
+    recordRecurringExpense,
     recurringExpenseForecast,
     recurringExpenseInsights,
     removeRecurringExpense,
@@ -165,7 +186,22 @@ export function RecurringPage() {
     frequency: 'monthly' as const,
     nextDate: todayKey(),
     notes: '',
+    kind: 'mandatory' as const,
   })
+
+  const dueSoon = recurringExpenseForecast.upcoming.filter((item) => {
+    const diff = Math.ceil((new Date(`${item.date}T12:00:00`).getTime() - new Date(`${todayKey()}T12:00:00`).getTime()) / 86400000)
+    return diff >= 0 && diff <= 7
+  })
+  const dueSoonTotal = dueSoon.reduce((sum, item) => sum + item.amountBase, 0)
+  const monthlyAggregate = useMemo(() => {
+    const grouped = new Map<string, number>()
+    for (const item of recurringExpenseForecast.upcoming) {
+      const key = item.date.slice(0, 7)
+      grouped.set(key, (grouped.get(key) ?? 0) + item.amountBase)
+    }
+    return Array.from(grouped.entries()).map(([month, total]) => ({ month, total }))
+  }, [recurringExpenseForecast.upcoming])
 
   return (
     <div className="stack gap-lg">
@@ -176,9 +212,9 @@ export function RecurringPage() {
           <span className="muted-text">uscite pianificate a breve</span>
         </article>
         <article className="panel metric-card metric-blue">
-          <p className="muted-label">Prossimi 90 giorni</p>
-          <strong>{formatCurrency(recurringExpenseForecast.next90DaysBase, baseCurrency)}</strong>
-          <span className="muted-text">visione del trimestre</span>
+          <p className="muted-label">Alert 7 giorni</p>
+          <strong>{formatCurrency(dueSoonTotal, baseCurrency)}</strong>
+          <span className="muted-text">{dueSoon.length} uscite in scadenza</span>
         </article>
         <article className="panel metric-card metric-violet">
           <p className="muted-label">Prossimi 12 mesi</p>
@@ -212,6 +248,7 @@ export function RecurringPage() {
                 frequency: form.frequency,
                 nextDate: form.nextDate,
                 notes: form.notes,
+                kind: form.kind,
               })
               setForm((current) => ({
                 ...current,
@@ -243,7 +280,7 @@ export function RecurringPage() {
                 onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))}
               />
             </div>
-            <div className="grid split-grid">
+            <div className="grid tri-grid">
               <select
                 className="input"
                 value={form.currency}
@@ -270,6 +307,14 @@ export function RecurringPage() {
                 <option value="monthly">Mensile</option>
                 <option value="quarterly">Trimestrale</option>
                 <option value="annual">Annuale</option>
+              </select>
+              <select
+                className="input"
+                value={form.kind}
+                onChange={(event) => setForm((current) => ({ ...current, kind: event.target.value as typeof current.kind }))}
+              >
+                <option value="mandatory">Obbligatoria</option>
+                <option value="optional">Opzionale</option>
               </select>
             </div>
             <input
@@ -304,6 +349,8 @@ export function RecurringPage() {
                   key={expense.id}
                   baseCurrency={baseCurrency}
                   expense={expense}
+                  fallbackAccountId={accounts[0]?.id}
+                  onRecord={recordRecurringExpense}
                   onRemove={removeRecurringExpense}
                   onSave={updateRecurringExpense}
                 />
@@ -351,23 +398,24 @@ export function RecurringPage() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="muted-label">Lettura rapida</p>
-              <h2>Indicatori di copertura</h2>
+              <p className="muted-label">Aggregato mensile</p>
+              <h2>Budget minimo da coprire</h2>
             </div>
           </div>
           <div className="stack gap-sm">
-            <div className="soft-card">
-              <span>Ricorrenze attive</span>
-              <strong>{recurringExpenseInsights.filter((item) => item.active).length}</strong>
-            </div>
-            <div className="soft-card">
-              <span>Voci inattive</span>
-              <strong>{recurringExpenseInsights.filter((item) => !item.active).length}</strong>
-            </div>
-            <div className="soft-card">
-              <span>Totale medio mensile</span>
-              <strong>{formatCurrency(recurringExpenseForecast.monthlyRequiredBase, baseCurrency)}</strong>
-            </div>
+            {monthlyAggregate.length ? (
+              monthlyAggregate.map((bucket) => (
+                <div key={bucket.month} className="soft-card">
+                  <span>{bucket.month}</span>
+                  <strong>{formatCurrency(bucket.total, baseCurrency)}</strong>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">
+                <strong>Nessuna ricorrenza aggregata</strong>
+                <p>Appena inserisci le ricorrenze, qui vedi il fabbisogno mese per mese.</p>
+              </div>
+            )}
           </div>
         </article>
       </section>

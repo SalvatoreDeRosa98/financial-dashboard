@@ -1477,6 +1477,100 @@ h2 {
   line-height: 1.6;
 }
 
+.list-card-button-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.list-card-button-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+
+.transaction-inline-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.compact-input {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.inline-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-pill,
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.status-pill {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0f766e;
+}
+
+.month-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.month-calendar-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.month-calendar-cell {
+  min-height: 110px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.month-calendar-cell strong {
+  font-size: 1rem;
+}
+
+.month-calendar-cell small {
+  color: var(--muted);
+}
+
+.month-calendar-cell-empty {
+  background: transparent;
+  border-style: dashed;
+}
+
 @media (max-width: 1100px) {
   .metrics-grid,
   .content-grid,
@@ -1523,6 +1617,10 @@ h2 {
 
   .onboarding-container {
     padding: 18px;
+  }
+
+  .month-calendar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .onboarding-hero,

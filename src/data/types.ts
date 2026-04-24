@@ -9,12 +9,15 @@ export interface SummaryMetric {
   accent: string
 }
 
+export type AccountKind = 'checking' | 'cash' | 'card' | 'broker' | 'savings'
+
 export interface AccountItem {
   id: string
   name: string
   institution: string
   balance: number
   currency: CurrencyCode
+  kind?: AccountKind
   tone: string
   editable: boolean
 }
@@ -27,15 +30,33 @@ export interface BudgetCategory {
   color: string
 }
 
+export type TransactionStatus = 'planned' | 'confirmed' | 'paid'
+
+export interface TransactionCategory {
+  id: string
+  name: string
+  type: 'income' | 'expense'
+  subcategories: string[]
+  color: string
+}
+
 export interface TransactionItem {
   id: string
   title: string
   category: string
+  subcategory?: string
   amount: number
   currency: CurrencyCode
   date: string
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'transfer'
   accountId: string
+  transferAccountId?: string | null
+  status?: TransactionStatus
+  tags?: string[]
+  notes?: string
+  attachmentName?: string
+  attachmentUrl?: string
+  linkedRecurringExpenseId?: string | null
 }
 
 export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly' | 'annual'
@@ -50,6 +71,24 @@ export interface RecurringExpenseItem {
   nextDate: string
   notes: string
   active: boolean
+  kind?: 'mandatory' | 'optional'
+}
+
+export interface GoalItem {
+  id: string
+  title: string
+  category: string
+  target: number
+  current: number
+  dueDate: string
+}
+
+export interface LiabilityItem {
+  id: string
+  title: string
+  balance: number
+  dueDate: string
+  kind: 'card' | 'loan' | 'tax' | 'other'
 }
 
 export interface PortfolioPosition {

@@ -13,14 +13,21 @@ import { useDashboardStore } from '../stores/dashboardStore'
 
 export function PortfolioPage() {
   const {
+    addGoal,
+    addLiability,
     addPosition,
-    accounts,
     baseCurrency,
     basePortfolioValue,
+    goals,
     hedgingAlert,
+    liabilities,
     portfolioTimeline,
     positionInsights,
+    recurringExpenseForecast,
     strategyAlert,
+    totalLiquidBase,
+    updateGoal,
+    updateLiability,
     updatePositionNotes,
     updatePositionPrice,
   } = useFinanceData()
@@ -37,7 +44,19 @@ export function PortfolioPage() {
     annualDividendPerShare: '',
     thesis: '',
   })
-  const brokerAccount = accounts.find((account) => account.id === 'acc-broker')
+  const [goalForm, setGoalForm] = useState({
+    title: '',
+    category: 'Fondo emergenza',
+    target: '',
+    current: '',
+    dueDate: '2026-12-31',
+  })
+  const [liabilityForm, setLiabilityForm] = useState({
+    title: '',
+    balance: '',
+    dueDate: '2026-12-31',
+    kind: 'card' as const,
+  })
   const selectedPositionId = useDashboardStore((state) => state.selectedInstrumentId)
   const setSelectedPositionId = useDashboardStore((state) => state.setSelectedInstrumentId)
   const totalCostBase = useMemo(
@@ -46,6 +65,12 @@ export function PortfolioPage() {
   )
   const totalPnlBase = basePortfolioValue - totalCostBase
   const totalPnlPct = totalCostBase > 0 ? (totalPnlBase / totalCostBase) * 100 : 0
+  const totalLiabilities = liabilities.reduce((sum, item) => sum + item.balance, 0)
+  const netWorth = totalLiquidBase + basePortfolioValue - totalLiabilities
+  const runwayMonths =
+    recurringExpenseForecast.monthlyRequiredBase > 0
+      ? totalLiquidBase / recurringExpenseForecast.monthlyRequiredBase
+      : 0
   const selectedPosition =
     positionInsights.find((position) => position.id === selectedPositionId) ?? null
 
@@ -71,11 +96,13 @@ export function PortfolioPage() {
           <span className={totalPnlBase >= 0 ? 'positive' : 'negative'}>{formatSignedPercent(totalPnlPct)}</span>
         </article>
         <article className="panel metric-card metric-amber">
-          <p className="muted-label">Broker wallet</p>
+          <p className="muted-label">Net worth</p>
           <strong>
-            {brokerAccount ? formatCurrency(brokerAccount.balance, brokerAccount.currency) : formatCurrency(0, baseCurrency)}
+            {formatCurrency(netWorth, baseCurrency)}
           </strong>
-          <span className="muted-text">liquidita disponibile per operazioni</span>
+          <span className="muted-text">
+            liquidita + portafoglio - passività
+          </span>
         </article>
       </section>
 
@@ -125,6 +152,62 @@ export function PortfolioPage() {
       </section>
 
       <section className="grid content-grid">
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="muted-label">Obiettivi</p>
+              <h2>Risparmi da costruire</h2>
+            </div>
+          </div>
+          <form
+            className="stack gap-sm"
+            onSubmit={(event) => {
+              event.preventDefault()
+              addGoal({
+                title: goalForm.title || 'Nuovo obiettivo',
+                category: goalForm.category,
+                target: safeNumber(goalForm.target, 0),
+                current: safeNumber(goalForm.current, 0),
+                dueDate: goalForm.dueDate,
+              })
+              setGoalForm((current) => ({ ...current, title: '', target: '', current: '' }))
+            }}
+          >
+            <input className="input" placeholder="Nome obiettivo" value={goalForm.title} onChange={(event) => setGoalForm((current) => ({ ...current, title: event.target.value }))} />
+            <input className="input" placeholder="Categoria" value={goalForm.category} onChange={(event) => setGoalForm((current) => ({ ...current, category: event.target.value }))} />
+            <div className="grid split-grid">
+              <input className="input" placeholder="Target" value={goalForm.target} onChange={(event) => setGoalForm((current) => ({ ...current, target: event.target.value }))} />
+              <input className="input" placeholder="Accumulo attuale" value={goalForm.current} onChange={(event) => setGoalForm((current) => ({ ...current, current: event.target.value }))} />
+            </div>
+            <input className="input" type="date" value={goalForm.dueDate} onChange={(event) => setGoalForm((current) => ({ ...current, dueDate: event.target.value }))} />
+            <button className="primary-button" type="submit">
+              Aggiungi obiettivo
+            </button>
+          </form>
+          <div className="stack gap-sm">
+            {goals.map((goal) => {
+              const progress = goal.target > 0 ? Math.min((goal.current / goal.target) * 100, 100) : 0
+              return (
+                <div key={goal.id} className="soft-card stack gap-sm">
+                  <div className="row-between">
+                    <strong>{goal.title}</strong>
+                    <span>{formatCurrency(goal.current, baseCurrency)} / {formatCurrency(goal.target, baseCurrency)}</span>
+                  </div>
+                  <div className="progress-track">
+                    <div className="progress-fill" style={{ width: `${progress}%`, background: '#14b8a6' }} />
+                  </div>
+                  <input
+                    className="input"
+                    defaultValue={goal.current}
+                    type="number"
+                    onBlur={(event) => updateGoal(goal.id, { current: safeNumber(event.target.value, goal.current) })}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </article>
+
         <article className="panel">
           <div className="panel-heading">
             <div>
@@ -247,6 +330,95 @@ export function PortfolioPage() {
               <div className="empty-state">
                 <strong>Portafoglio ancora vuoto</strong>
                 <p>Le posizioni appariranno qui quando aggiungerai il primo strumento.</p>
+              </div>
+            )}
+          </div>
+        </article>
+      </section>
+
+      <section className="grid content-grid">
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="muted-label">Passività</p>
+              <h2>Debiti e impegni</h2>
+            </div>
+          </div>
+          <form
+            className="stack gap-sm"
+            onSubmit={(event) => {
+              event.preventDefault()
+              addLiability({
+                title: liabilityForm.title || 'Nuova passività',
+                balance: safeNumber(liabilityForm.balance, 0),
+                dueDate: liabilityForm.dueDate,
+                kind: liabilityForm.kind,
+              })
+              setLiabilityForm((current) => ({ ...current, title: '', balance: '' }))
+            }}
+          >
+            <input className="input" placeholder="Titolo" value={liabilityForm.title} onChange={(event) => setLiabilityForm((current) => ({ ...current, title: event.target.value }))} />
+            <div className="grid split-grid">
+              <select className="input" value={liabilityForm.kind} onChange={(event) => setLiabilityForm((current) => ({ ...current, kind: event.target.value as typeof current.kind }))}>
+                <option value="card">Carta</option>
+                <option value="loan">Prestito</option>
+                <option value="tax">Tasse</option>
+                <option value="other">Altro</option>
+              </select>
+              <input className="input" placeholder="Saldo residuo" value={liabilityForm.balance} onChange={(event) => setLiabilityForm((current) => ({ ...current, balance: event.target.value }))} />
+            </div>
+            <input className="input" type="date" value={liabilityForm.dueDate} onChange={(event) => setLiabilityForm((current) => ({ ...current, dueDate: event.target.value }))} />
+            <button className="primary-button" type="submit">
+              Aggiungi passività
+            </button>
+          </form>
+        </article>
+
+        <article className="panel span-two">
+          <div className="panel-heading">
+            <div>
+              <p className="muted-label">Sintesi personale</p>
+              <h2>Tenuta finanziaria complessiva</h2>
+            </div>
+          </div>
+          <div className="grid tri-grid">
+            <div className="soft-card">
+              <span>Liquidità + investimenti</span>
+              <strong>{formatCurrency(totalLiquidBase + basePortfolioValue, baseCurrency)}</strong>
+            </div>
+            <div className="soft-card">
+              <span>Passività totali</span>
+              <strong>{formatCurrency(totalLiabilities, baseCurrency)}</strong>
+            </div>
+            <div className="soft-card">
+              <span>Runway</span>
+              <strong>{runwayMonths.toFixed(1)} mesi</strong>
+            </div>
+          </div>
+          <div className="stack gap-sm">
+            {liabilities.length ? (
+              liabilities.map((liability) => (
+                <div key={liability.id} className="list-card">
+                  <div className="stack gap-xs">
+                    <strong>{liability.title}</strong>
+                    <span className="muted-text">
+                      {liability.kind} · {formatDateLong(liability.dueDate)}
+                    </span>
+                  </div>
+                  <input
+                    className="input compact-input"
+                    defaultValue={liability.balance}
+                    type="number"
+                    onBlur={(event) =>
+                      updateLiability(liability.id, { balance: safeNumber(event.target.value, liability.balance) })
+                    }
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">
+                <strong>Nessuna passività registrata</strong>
+                <p>Carte, finanziamenti o imposte appariranno qui.</p>
               </div>
             )}
           </div>
