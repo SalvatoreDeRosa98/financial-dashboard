@@ -273,6 +273,17 @@ function countOccurrencesWithinHorizon(
   return count
 }
 
+function todayDateKey() {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
+    today.getDate(),
+  ).padStart(2, '0')}`
+}
+
+function isEffectiveTransactionDate(date: string) {
+  return date <= todayDateKey()
+}
+
 function normalizeTransactionDraft(input: TransactionDraft) {
   return {
     ...input,
@@ -753,6 +764,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
 
   const addTransaction = (input: TransactionDraft) => {
     const normalizedInput = normalizeTransactionDraft(input)
+    const shouldApplyNow = isEffectiveTransactionDate(normalizedInput.date)
 
     setState((current) => ({
       ...current,
@@ -760,7 +772,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
         b.date.localeCompare(a.date),
       ),
       budgets:
-        normalizedInput.type === 'expense'
+        shouldApplyNow && normalizedInput.type === 'expense'
           ? current.budgets.map((budget) =>
               budget.name === normalizedInput.category
                 ? {
@@ -779,14 +791,16 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
                 : budget,
             )
           : current.budgets,
-      accounts: current.accounts.map((account) =>
-        account.id === normalizedInput.accountId
-          ? {
-              ...account,
-              balance: account.balance + transactionAccountDelta(normalizedInput),
-            }
-          : account,
-      ),
+      accounts: shouldApplyNow
+        ? current.accounts.map((account) =>
+            account.id === normalizedInput.accountId
+              ? {
+                  ...account,
+                  balance: account.balance + transactionAccountDelta(normalizedInput),
+                }
+              : account,
+          )
+        : current.accounts,
     }))
   }
 
@@ -799,6 +813,9 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
       if (!previous) {
         return current
       }
+
+      const previousApplied = isEffectiveTransactionDate(previous.date)
+      const nextApplied = isEffectiveTransactionDate(normalizedInput.date)
 
       const previousBudgetDelta = Math.abs(
         convertWithEuroBaseRates(
@@ -825,11 +842,11 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
         accounts: current.accounts.map((account) => {
           let nextBalance = account.balance
 
-          if (account.id === previous.accountId) {
+          if (previousApplied && account.id === previous.accountId) {
             nextBalance -= transactionAccountDelta(previous)
           }
 
-          if (account.id === normalizedInput.accountId) {
+          if (nextApplied && account.id === normalizedInput.accountId) {
             nextBalance += transactionAccountDelta(normalizedInput)
           }
 
@@ -840,11 +857,11 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
         budgets: current.budgets.map((budget) => {
           let nextSpent = budget.spent
 
-          if (previous.type === 'expense' && budget.name === previous.category) {
+          if (previousApplied && previous.type === 'expense' && budget.name === previous.category) {
             nextSpent = Math.max(nextSpent - previousBudgetDelta, 0)
           }
 
-          if (normalizedInput.type === 'expense' && budget.name === normalizedInput.category) {
+          if (nextApplied && normalizedInput.type === 'expense' && budget.name === normalizedInput.category) {
             nextSpent += nextBudgetDelta
           }
 
