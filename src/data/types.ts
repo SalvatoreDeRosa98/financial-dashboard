@@ -38,6 +38,20 @@ export interface TransactionItem {
   accountId: string
 }
 
+export type RecurringFrequency = 'weekly' | 'monthly' | 'quarterly' | 'annual'
+
+export interface RecurringExpenseItem {
+  id: string
+  title: string
+  category: string
+  amount: number
+  currency: CurrencyCode
+  frequency: RecurringFrequency
+  nextDate: string
+  notes: string
+  active: boolean
+}
+
 export interface PortfolioPosition {
   id: string
   symbol: string
@@ -110,7 +124,7 @@ export interface OpportunityItem {
   }
 }
 
-export interface FxRateMap extends Record<CurrencyCode, number> {}
+export type FxRateMap = Record<CurrencyCode, number>
 
 export interface PeriodOption {
   label: string

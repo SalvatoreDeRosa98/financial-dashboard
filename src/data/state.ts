@@ -14,6 +14,7 @@ import type {
   CalendarItem,
   CurrencyCode,
   PortfolioPosition,
+  RecurringExpenseItem,
   StrategyTarget,
   TaxCreditBucket,
   TransactionItem,
@@ -25,6 +26,7 @@ export interface FinanceState {
   accounts: AccountItem[]
   budgets: BudgetCategory[]
   transactions: TransactionItem[]
+  recurringExpenses: RecurringExpenseItem[]
   positions: PortfolioPosition[]
   watchlist: WatchlistItem[]
   calendarItems: CalendarItem[]
@@ -38,6 +40,7 @@ export function createEmptyFinanceState(baseCurrency: CurrencyCode = 'EUR'): Fin
     accounts: [],
     budgets: [],
     transactions: [],
+    recurringExpenses: [],
     positions: [],
     watchlist: [],
     calendarItems: [],
@@ -77,6 +80,7 @@ export function createStarterFinanceState(baseCurrency: CurrencyCode = 'EUR'): F
       budget: 0,
     })),
     transactions: [],
+    recurringExpenses: [],
     positions: [],
     watchlist: [],
     calendarItems: [],
@@ -90,6 +94,7 @@ export const defaultFinanceState: FinanceState = {
   accounts: seedAccounts,
   budgets: seedBudgets,
   transactions: seedTransactions,
+  recurringExpenses: [],
   positions: seedPositions,
   watchlist: seedWatchlist,
   calendarItems: seedCalendar,

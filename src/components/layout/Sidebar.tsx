@@ -7,6 +7,7 @@ const navItems = [
   { to: '/investments', label: 'Portafoglio', icon: 'PF' },
   { to: '/expenses', label: 'Mercati', icon: 'MK' },
   { to: '/fx', label: 'Valute', icon: 'FX' },
+  { to: '/calendar', label: 'Ricorrenze', icon: 'RC' },
   { to: '/reports', label: 'Report', icon: 'RP' },
 ]
 
@@ -44,8 +45,8 @@ export function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-card">
-          <p>Database locale</p>
-          <strong>Dati salvati nel browser con persistenza IndexedDB</strong>
+          <p>Workspace</p>
+          <strong>Conti, ricorrenze, portafoglio e report nello stesso spazio</strong>
         </div>
         <ThemeToggle />
       </div>

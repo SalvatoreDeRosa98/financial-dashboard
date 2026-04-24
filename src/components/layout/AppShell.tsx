@@ -25,6 +25,10 @@ const pageMeta: Record<string, { title: string; subtitle: string }> = {
     title: 'Valute',
     subtitle: 'Valuta base, conversioni e impatto del cambio sul portafoglio.',
   },
+  '/calendar': {
+    title: 'Ricorrenze',
+    subtitle: 'Spese ricorrenti, prossime scadenze e fabbisogno di budget futuro.',
+  },
   '/reports': {
     title: 'Report',
     subtitle: 'Sintesi di spese, dividendi, crediti fiscali ed esposizione valutaria.',

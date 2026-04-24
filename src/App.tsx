@@ -20,6 +20,9 @@ const MarketsPage = lazy(() =>
 const FxPage = lazy(() =>
   import('./pages/FX').then((module) => ({ default: module.FXPage })),
 )
+const CalendarPage = lazy(() =>
+  import('./pages/Recurring').then((module) => ({ default: module.RecurringPage })),
+)
 const ReportsPage = lazy(() => import('./pages/Reports').then((module) => ({ default: module.ReportsPage })))
 
 function AppContent() {
@@ -44,8 +47,8 @@ function AppContent() {
             <Route path="/investments" element={<InvestmentsPage />} />
             <Route path="/expenses" element={<MarketsPage />} />
             <Route path="/fx" element={<FxPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/calendar" element={<Navigate to="/reports" replace />} />
           </Route>
         </Routes>
       </Suspense>

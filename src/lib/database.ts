@@ -1,7 +1,7 @@
 import { createStarterFinanceState, defaultFinanceState, type FinanceState } from '../data/state'
 
 const DB_NAME = 'financial-dashboard-db'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 const LEGACY_STATE_KEY = 'fintracker-pro-state-v2'
 const LEGACY_USER_NAME_KEY = 'fintracker-user-name'
@@ -10,6 +10,7 @@ const DATA_STORES = [
   'accounts',
   'budgets',
   'transactions',
+  'recurringExpenses',
   'positions',
   'watchlist',
   'calendarItems',
@@ -62,6 +63,7 @@ function openFinanceDatabase() {
         'accounts',
         'budgets',
         'transactions',
+        'recurringExpenses',
         'positions',
         'watchlist',
         'calendarItems',
@@ -112,6 +114,7 @@ function isStateEqual(left: FinanceState, right: FinanceState) {
 function shouldUseStarterState(state: FinanceState) {
   const hasNoUserData =
     state.transactions.length === 0 &&
+    state.recurringExpenses.length === 0 &&
     state.positions.length === 0 &&
     state.watchlist.length === 0 &&
     state.calendarItems.length === 0 &&
@@ -143,6 +146,7 @@ async function readStoredData() {
     accounts,
     budgets,
     transactions,
+    recurringExpenses,
     positions,
     watchlist,
     calendarItems,
@@ -154,6 +158,7 @@ async function readStoredData() {
     requestToPromise(transaction.objectStore('accounts').getAll()),
     requestToPromise(transaction.objectStore('budgets').getAll()),
     requestToPromise(transaction.objectStore('transactions').getAll()),
+    requestToPromise(transaction.objectStore('recurringExpenses').getAll()),
     requestToPromise(transaction.objectStore('positions').getAll()),
     requestToPromise(transaction.objectStore('watchlist').getAll()),
     requestToPromise(transaction.objectStore('calendarItems').getAll()),
@@ -169,6 +174,7 @@ async function readStoredData() {
     accounts.length > 0 ||
     budgets.length > 0 ||
     transactions.length > 0 ||
+    recurringExpenses.length > 0 ||
     positions.length > 0 ||
     watchlist.length > 0 ||
     calendarItems.length > 0 ||
@@ -187,6 +193,7 @@ async function readStoredData() {
       accounts,
       budgets,
       transactions,
+      recurringExpenses,
       positions,
       watchlist,
       calendarItems,
@@ -206,6 +213,7 @@ export async function saveFinanceState(state: FinanceState) {
   replaceStore(transaction, 'accounts', state.accounts)
   replaceStore(transaction, 'budgets', state.budgets)
   replaceStore(transaction, 'transactions', state.transactions)
+  replaceStore(transaction, 'recurringExpenses', state.recurringExpenses)
   replaceStore(transaction, 'positions', state.positions)
   replaceStore(transaction, 'watchlist', state.watchlist)
   replaceStore(transaction, 'calendarItems', state.calendarItems)

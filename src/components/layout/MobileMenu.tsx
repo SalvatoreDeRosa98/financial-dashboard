@@ -12,6 +12,7 @@ const navItems = [
   { to: '/investments', label: 'Portafoglio' },
   { to: '/expenses', label: 'Mercati' },
   { to: '/fx', label: 'Valute' },
+  { to: '/calendar', label: 'Ricorrenze' },
   { to: '/reports', label: 'Report' },
 ]
 

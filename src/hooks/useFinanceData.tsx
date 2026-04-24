@@ -32,6 +32,7 @@ import type {
   NewsItem,
   OpportunityItem,
   PortfolioPosition,
+  RecurringExpenseItem,
   SaleSimulation,
   SimulatedSaleLot,
   SummaryMetric,
@@ -69,6 +70,16 @@ interface TransactionDraft {
   accountId: string
 }
 
+interface RecurringExpenseDraft {
+  title: string
+  category: string
+  amount: number
+  currency: CurrencyCode
+  frequency: RecurringExpenseItem['frequency']
+  nextDate: string
+  notes: string
+}
+
 interface WatchlistDraft {
   symbol: string
   name: string
@@ -98,6 +109,25 @@ interface PositionInsight extends PortfolioPosition {
   fxImpactBase: number
 }
 
+interface RecurringExpenseInsight extends RecurringExpenseItem {
+  amountBase: number
+  monthlyEquivalentBase: number
+  occurrences30: number
+  occurrences90: number
+  occurrences365: number
+}
+
+interface RecurringExpenseForecastItem {
+  expenseId: string
+  title: string
+  category: string
+  date: string
+  amount: number
+  amountBase: number
+  currency: CurrencyCode
+  frequency: RecurringExpenseItem['frequency']
+}
+
 interface FinanceContextValue extends FinanceState {
   isHydrated: boolean
   supportedCurrencies: CurrencyCode[]
@@ -123,17 +153,34 @@ interface FinanceContextValue extends FinanceState {
   annualDividendIncomeBase: number
   taxCreditRemaining: number
   taxCreditExpiring: TaxCreditBucket[]
+  recurringExpenseInsights: RecurringExpenseInsight[]
+  recurringExpenseForecast: {
+    next30DaysBase: number
+    next90DaysBase: number
+    next365DaysBase: number
+    monthlyRequiredBase: number
+    upcoming: RecurringExpenseForecastItem[]
+  }
   periodOptions: typeof periodOptions
   userName: string
   setUserName: (name: string) => void
   completeOnboarding: (name: string) => void
   setBaseCurrency: (currency: CurrencyCode) => void
+  addAccount: () => void
   addTransaction: (input: TransactionDraft) => void
   updateBudget: (id: string, budget: number) => void
   updateAccount: (
     id: string,
     patch: Partial<Pick<AccountItem, 'name' | 'institution' | 'balance'>>,
   ) => void
+  addRecurringExpense: (input: RecurringExpenseDraft) => void
+  updateRecurringExpense: (
+    id: string,
+    patch: Partial<
+      Pick<RecurringExpenseItem, 'title' | 'category' | 'amount' | 'currency' | 'frequency' | 'nextDate' | 'notes' | 'active'>
+    >,
+  ) => void
+  removeRecurringExpense: (id: string) => void
   addPosition: (input: PositionDraft) => Promise<void>
   updatePositionPrice: (id: string, price: number) => void
   addWatchlistItem: (input: WatchlistDraft) => void
@@ -158,6 +205,70 @@ const FinanceContext = createContext<FinanceContextValue | null>(null)
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+const ACCOUNT_TONES: AccountItem['tone'][] = ['teal', 'blue', 'amber', 'violet']
+
+function parseStoredDate(date: string) {
+  return new Date(`${date}T12:00:00`)
+}
+
+function formatStoredDate(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function advanceRecurringDate(date: Date, frequency: RecurringExpenseItem['frequency']) {
+  const next = new Date(date)
+
+  if (frequency === 'weekly') {
+    next.setDate(next.getDate() + 7)
+  } else if (frequency === 'monthly') {
+    next.setMonth(next.getMonth() + 1)
+  } else if (frequency === 'quarterly') {
+    next.setMonth(next.getMonth() + 3)
+  } else {
+    next.setFullYear(next.getFullYear() + 1)
+  }
+
+  return next
+}
+
+function getAlignedRecurringDate(date: string, frequency: RecurringExpenseItem['frequency']) {
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+
+  let cursor = parseStoredDate(date)
+  let safety = 0
+
+  while (cursor < today && safety < 500) {
+    cursor = advanceRecurringDate(cursor, frequency)
+    safety += 1
+  }
+
+  return cursor
+}
+
+function countOccurrencesWithinHorizon(
+  startDate: string,
+  frequency: RecurringExpenseItem['frequency'],
+  horizonDays: number,
+) {
+  const start = getAlignedRecurringDate(startDate, frequency)
+  const horizon = new Date()
+  horizon.setHours(12, 0, 0, 0)
+  horizon.setDate(horizon.getDate() + horizonDays)
+
+  let cursor = start
+  let count = 0
+  let safety = 0
+
+  while (cursor <= horizon && safety < 500) {
+    count += 1
+    cursor = advanceRecurringDate(cursor, frequency)
+    safety += 1
+  }
+
+  return count
 }
 
 export function FinanceDataProvider({ children }: PropsWithChildren) {
@@ -497,6 +608,98 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     return state.taxCredits.filter((item) => new Date(item.expiresAt) <= cutoff)
   }, [state.taxCredits])
 
+  const recurringExpenseInsights = useMemo<RecurringExpenseInsight[]>(
+    () =>
+      state.recurringExpenses.map((expense) => {
+        const amountBase = convertWithEuroBaseRates(
+          expense.amount,
+          expense.currency,
+          state.baseCurrency,
+          fxRates,
+        )
+        const monthlyEquivalentBase =
+          expense.frequency === 'weekly'
+            ? (amountBase * 52) / 12
+            : expense.frequency === 'monthly'
+              ? amountBase
+              : expense.frequency === 'quarterly'
+                ? amountBase / 3
+                : amountBase / 12
+
+        return {
+          ...expense,
+          amountBase,
+          monthlyEquivalentBase,
+          occurrences30: expense.active
+            ? countOccurrencesWithinHorizon(expense.nextDate, expense.frequency, 30)
+            : 0,
+          occurrences90: expense.active
+            ? countOccurrencesWithinHorizon(expense.nextDate, expense.frequency, 90)
+            : 0,
+          occurrences365: expense.active
+            ? countOccurrencesWithinHorizon(expense.nextDate, expense.frequency, 365)
+            : 0,
+        }
+      }),
+    [fxRates, state.baseCurrency, state.recurringExpenses],
+  )
+
+  const recurringExpenseForecast = useMemo(() => {
+    const today = new Date()
+    today.setHours(12, 0, 0, 0)
+    const horizon30 = new Date(today)
+    horizon30.setDate(horizon30.getDate() + 30)
+    const horizon90 = new Date(today)
+    horizon90.setDate(horizon90.getDate() + 90)
+    const horizon365 = new Date(today)
+    horizon365.setDate(horizon365.getDate() + 365)
+
+    let next30DaysBase = 0
+    let next90DaysBase = 0
+    let next365DaysBase = 0
+    const upcoming: RecurringExpenseForecastItem[] = []
+
+    for (const expense of recurringExpenseInsights.filter((item) => item.active)) {
+      let cursor = getAlignedRecurringDate(expense.nextDate, expense.frequency)
+      let safety = 0
+
+      while (cursor <= horizon365 && safety < 500) {
+        const dateValue = formatStoredDate(cursor)
+        upcoming.push({
+          expenseId: expense.id,
+          title: expense.title,
+          category: expense.category,
+          date: dateValue,
+          amount: expense.amount,
+          amountBase: expense.amountBase,
+          currency: expense.currency,
+          frequency: expense.frequency,
+        })
+
+        if (cursor <= horizon30) {
+          next30DaysBase += expense.amountBase
+        }
+        if (cursor <= horizon90) {
+          next90DaysBase += expense.amountBase
+        }
+        next365DaysBase += expense.amountBase
+
+        cursor = advanceRecurringDate(cursor, expense.frequency)
+        safety += 1
+      }
+    }
+
+    return {
+      next30DaysBase,
+      next90DaysBase,
+      next365DaysBase,
+      monthlyRequiredBase: recurringExpenseInsights
+        .filter((item) => item.active)
+        .reduce((sum, item) => sum + item.monthlyEquivalentBase, 0),
+      upcoming: upcoming.sort((left, right) => left.date.localeCompare(right.date)).slice(0, 12),
+    }
+  }, [recurringExpenseInsights])
+
   const setUserName = (name: string) => {
     setUserNameState(name)
   }
@@ -508,6 +711,27 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
 
   const setBaseCurrency = (currency: CurrencyCode) => {
     setState((current) => ({ ...current, baseCurrency: currency }))
+  }
+
+  const addAccount = () => {
+    setState((current) => {
+      const nextIndex = current.accounts.length + 1
+      return {
+        ...current,
+        accounts: [
+          ...current.accounts,
+          {
+            id: createId('acc'),
+            name: `Conto ${nextIndex}`,
+            institution: 'Nuovo istituto',
+            balance: 0,
+            currency: current.baseCurrency,
+            tone: ACCOUNT_TONES[current.accounts.length % ACCOUNT_TONES.length],
+            editable: true,
+          },
+        ],
+      }
+    })
   }
 
   const addTransaction = (input: TransactionDraft) => {
@@ -546,6 +770,40 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
             }
           : account,
       ),
+    }))
+  }
+
+  const addRecurringExpense = (input: RecurringExpenseDraft) => {
+    setState((current) => ({
+      ...current,
+      recurringExpenses: [
+        { id: createId('rec'), active: true, ...input },
+        ...current.recurringExpenses,
+      ].sort((left, right) => left.nextDate.localeCompare(right.nextDate)),
+    }))
+  }
+
+  const updateRecurringExpense = (
+    id: string,
+    patch: Partial<
+      Pick<
+        RecurringExpenseItem,
+        'title' | 'category' | 'amount' | 'currency' | 'frequency' | 'nextDate' | 'notes' | 'active'
+      >
+    >,
+  ) => {
+    setState((current) => ({
+      ...current,
+      recurringExpenses: current.recurringExpenses
+        .map((expense) => (expense.id === id ? { ...expense, ...patch } : expense))
+        .sort((left, right) => left.nextDate.localeCompare(right.nextDate)),
+    }))
+  }
+
+  const removeRecurringExpense = (id: string) => {
+    setState((current) => ({
+      ...current,
+      recurringExpenses: current.recurringExpenses.filter((expense) => expense.id !== id),
     }))
   }
 
@@ -760,14 +1018,20 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     annualDividendIncomeBase,
     taxCreditRemaining,
     taxCreditExpiring,
+    recurringExpenseInsights,
+    recurringExpenseForecast,
     periodOptions,
     userName,
     setUserName,
     completeOnboarding,
     setBaseCurrency,
+    addAccount,
     addTransaction,
     updateBudget,
     updateAccount,
+    addRecurringExpense,
+    updateRecurringExpense,
+    removeRecurringExpense,
     addPosition,
     updatePositionPrice,
     addWatchlistItem,

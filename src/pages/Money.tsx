@@ -58,6 +58,7 @@ function AccountEditorCard({
 export function MoneyPage() {
   const {
     accounts,
+    addAccount,
     addTransaction,
     baseCurrency,
     budgets,
@@ -113,10 +114,21 @@ export function MoneyPage() {
 
   return (
     <div className="stack gap-lg">
-      <section className="grid metrics-grid">
-        {accounts.map((account) => (
-          <AccountEditorCard key={account.id} account={account} onSave={updateAccount} />
-        ))}
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <p className="muted-label">Conti operativi</p>
+            <h2>Saldi e istituti collegati</h2>
+          </div>
+          <button className="icon-button" onClick={addAccount} type="button" aria-label="Aggiungi conto">
+            +
+          </button>
+        </div>
+        <div className="grid metrics-grid">
+          {accounts.map((account) => (
+            <AccountEditorCard key={account.id} account={account} onSave={updateAccount} />
+          ))}
+        </div>
       </section>
 
       <section className="grid content-grid">

@@ -1000,6 +1000,20 @@ h2 {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--text);
+  font-size: 1.45rem;
+  line-height: 1;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
 .primary-button {
   border: none;
   background: linear-gradient(135deg, #0f766e 0%, #0f5f8a 100%);
@@ -1014,7 +1028,8 @@ h2 {
 }
 
 .primary-button:hover,
-.ghost-button:hover {
+.ghost-button:hover,
+.icon-button:hover {
   transform: translateY(-1px);
 }
 
@@ -1058,6 +1073,23 @@ h2 {
 .home-market-card span,
 .home-market-card small {
   color: var(--muted);
+}
+
+.recurring-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.95));
+}
+
+.recurring-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .chart-embed {
