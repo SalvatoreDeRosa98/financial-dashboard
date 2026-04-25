@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
 import { AppShell } from './components/layout/AppShell'
 import { FinanceDataProvider, useFinanceData } from './hooks/useFinanceData'
@@ -36,6 +36,7 @@ const ReportsPage = lazy(() => import('./pages/Reports').then((module) => ({ def
 
 function AppContent() {
   const { completeOnboarding, isHydrated, userName } = useFinanceData()
+  const Router = import.meta.env.TAURI_ENV_PLATFORM ? HashRouter : BrowserRouter
 
   if (!isHydrated) {
     return <div className="route-loading">Caricamento dati...</div>
@@ -46,7 +47,7 @@ function AppContent() {
   }
 
   return (
-    <BrowserRouter>
+    <Router>
       <Suspense fallback={<div className="route-loading">Caricamento dashboard...</div>}>
         <Routes>
           <Route element={<AppShell />}>
@@ -65,7 +66,7 @@ function AppContent() {
           </Route>
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </Router>
   )
 }
 
