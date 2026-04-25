@@ -206,6 +206,7 @@ interface FinanceContextValue extends FinanceState {
   addTransaction: (input: TransactionDraft) => void
   updateTransaction: (id: string, input: TransactionDraft) => void
   duplicateTransaction: (id: string) => void
+  removeTransaction: (id: string) => void
   updateBudget: (id: string, budget: number) => void
   updateAccount: (
     id: string,
@@ -1129,6 +1130,37 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     })
   }
 
+  const removeTransaction = (id: string) => {
+    setState((current) => {
+      const transaction = current.transactions.find((item) => item.id === id)
+      if (!transaction) return current
+
+      const shouldRollback = affectsCurrentBalance(transaction)
+      const budgetDelta = Math.abs(
+        convertWithEuroBaseRates(
+          transactionBudgetDelta(transaction),
+          transaction.currency,
+          current.baseCurrency,
+          fxRates,
+        ),
+      )
+
+      return {
+        ...current,
+        transactions: current.transactions.filter((item) => item.id !== id),
+        accounts: shouldRollback ? applyTransactionToAccounts(current.accounts, transaction, -1) : current.accounts,
+        budgets:
+          shouldRollback && transaction.type === 'expense'
+            ? current.budgets.map((budget) =>
+                budget.name === transaction.category
+                  ? { ...budget, spent: Math.max(budget.spent - budgetDelta, 0) }
+                  : budget,
+              )
+            : current.budgets,
+      }
+    })
+  }
+
   const addRecurringExpense = (input: RecurringExpenseDraft) => {
     setState((current) => ({
       ...current,
@@ -1473,6 +1505,7 @@ export function FinanceDataProvider({ children }: PropsWithChildren) {
     addTransaction,
     updateTransaction,
     duplicateTransaction,
+    removeTransaction,
     updateBudget,
     updateAccount,
     addCategory,

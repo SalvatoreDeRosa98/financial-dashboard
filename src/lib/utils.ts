@@ -43,8 +43,7 @@ export function formatDateLong(date: string) {
 }
 
 export function monthKey(date: string) {
-  const parsed = new Date(date)
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`
+  return date.slice(0, 7)
 }
 
 export function monthLabelFromKey(key: string) {

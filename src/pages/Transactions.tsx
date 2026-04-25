@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useFinanceData } from '../hooks/useFinanceData'
-import { formatDateLabel, safeNumber } from '../lib/utils'
+import { formatDateLabel, monthKey, safeNumber } from '../lib/utils'
 import {
   TransactionEditorModal,
   TransactionFormPanel,
@@ -8,6 +8,7 @@ import {
   type TransactionFormState,
 } from '../components/money/MoneyPanels'
 import type { TransactionItem, TransactionStatus } from '../data/types'
+import { useDashboardStore } from '../stores/dashboardStore'
 
 function todayKey() {
   const today = new Date()
@@ -43,9 +44,11 @@ export function TransactionsPage() {
     baseCurrency,
     categories,
     duplicateTransaction,
+    removeTransaction,
     transactions,
     updateTransaction,
   } = useFinanceData()
+  const setSelectedMonth = useDashboardStore((state) => state.setSelectedMoneyMonth)
   const [form, setForm] = useState<TransactionFormState>({
     title: '',
     category: categories.find((category) => category.type === 'expense')?.name ?? 'Cibo',
@@ -140,6 +143,7 @@ export function TransactionsPage() {
               attachmentUrl: form.attachmentUrl,
               linkedRecurringExpenseId: form.linkedRecurringExpenseId ?? null,
             })
+            setSelectedMonth(monthKey(form.date))
             setForm((current) => ({
               ...current,
               title: '',
@@ -284,6 +288,13 @@ export function TransactionsPage() {
         onDuplicate={() => {
           if (!selectedTransaction) return
           duplicateTransaction(selectedTransaction.id)
+        }}
+        onRemove={() => {
+          if (!selectedTransaction) return
+          const shouldRemove = window.confirm(`Eliminare "${selectedTransaction.title}"?`)
+          if (!shouldRemove) return
+          removeTransaction(selectedTransaction.id)
+          setSelectedTransactionId(null)
         }}
         onSave={() => {
           if (!selectedTransaction) return

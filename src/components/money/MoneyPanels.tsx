@@ -363,6 +363,7 @@ export function TransactionEditorModal({
   onClose,
   onSave,
   onDuplicate,
+  onRemove,
   title,
 }: {
   accounts: Pick<AccountItem, 'id' | 'institution' | 'name'>[]
@@ -373,6 +374,7 @@ export function TransactionEditorModal({
   onClose: () => void
   onSave: () => void
   onDuplicate?: () => void
+  onRemove?: () => void
   title: string
 }) {
   if (!isOpen) return null
@@ -556,11 +558,18 @@ export function TransactionEditorModal({
             ) : null}
           </div>
           <div className="transaction-actions">
-            {onDuplicate ? (
-              <button className="ghost-button" type="button" onClick={onDuplicate}>
-                Duplica
-              </button>
-            ) : null}
+            <div className="row-inline">
+              {onDuplicate ? (
+                <button className="ghost-button" type="button" onClick={onDuplicate}>
+                  Duplica
+                </button>
+              ) : null}
+              {onRemove ? (
+                <button className="danger-button" type="button" onClick={onRemove}>
+                  Elimina
+                </button>
+              ) : null}
+            </div>
             <button className="primary-button" type="submit">
               Salva modifica
             </button>

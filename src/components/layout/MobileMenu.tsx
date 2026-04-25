@@ -6,17 +6,30 @@ interface MobileMenuProps {
   onClose: () => void
 }
 
-const navItems = [
-  { to: '/overview', label: 'Home' },
-  { to: '/month', label: 'Mese' },
-  { to: '/transactions', label: 'Movimenti' },
-  { to: '/accounts', label: 'Conti' },
-  { to: '/budget', label: 'Budget' },
-  { to: '/investments', label: 'Portafoglio' },
-  { to: '/markets', label: 'Mercati' },
-  { to: '/fx', label: 'Valute' },
-  { to: '/calendar', label: 'Ricorrenze' },
-  { to: '/reports', label: 'Report' },
+const navSections = [
+  {
+    label: 'Vista generale',
+    items: [{ to: '/overview', label: 'Home' }],
+  },
+  {
+    label: 'Gestione denaro',
+    items: [
+      { to: '/month', label: 'Mese' },
+      { to: '/transactions', label: 'Movimenti' },
+      { to: '/accounts', label: 'Conti' },
+      { to: '/budget', label: 'Budget' },
+      { to: '/calendar', label: 'Ricorrenze' },
+    ],
+  },
+  {
+    label: 'Finanza e investimenti',
+    items: [
+      { to: '/investments', label: 'Portafoglio' },
+      { to: '/markets', label: 'Mercati' },
+      { to: '/fx', label: 'Valute' },
+      { to: '/reports', label: 'Report' },
+    ],
+  },
 ]
 
 export function MobileMenu({ open, onClose }: MobileMenuProps) {
@@ -34,17 +47,24 @@ export function MobileMenu({ open, onClose }: MobileMenuProps) {
         </div>
 
         <div className="mobile-menu-links">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              className={({ isActive }) =>
-                `mobile-link ${isActive ? 'is-active' : ''}`
-              }
-              onClick={onClose}
-              to={item.to}
-            >
-              {item.label}
-            </NavLink>
+          {navSections.map((section) => (
+            <div className="mobile-nav-section" key={section.label}>
+              <p className="nav-section-label">{section.label}</p>
+              <div className="nav-section-links">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    className={({ isActive }) =>
+                      `mobile-link ${isActive ? 'is-active' : ''}`
+                    }
+                    onClick={onClose}
+                    to={item.to}
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 

@@ -52,6 +52,7 @@ export function MonthPage() {
     baseCurrency,
     categories,
     fxRates,
+    removeTransaction,
     recurringExpenseForecast,
     recurringExpenseInsights,
     transactions,
@@ -60,10 +61,8 @@ export function MonthPage() {
   const selectedMonthState = useDashboardStore((state) => state.selectedMoneyMonth)
   const setSelectedMonth = useDashboardStore((state) => state.setSelectedMoneyMonth)
 
-  const monthKeys = Array.from(new Set(transactions.map((item) => monthKey(item.date)))).sort((left, right) =>
-    right.localeCompare(left),
-  )
-  const selectedMonth = selectedMonthState ?? monthKeys[0] ?? monthKey(todayKey())
+  const currentMonth = monthKey(todayKey())
+  const selectedMonth = selectedMonthState ?? currentMonth
   const previousMonth = shiftMonth(selectedMonth, -1)
   const { start: monthStart, end: monthEnd } = monthRange(selectedMonth)
 
@@ -109,6 +108,11 @@ export function MonthPage() {
   const pendingExpenses = monthExpenseTransactions
     .filter((item) => (item.status ?? 'paid') !== 'paid')
     .reduce((sum, item) => sum + toBase(item), 0)
+  const selectedMonthLabel = new Intl.DateTimeFormat('it-IT', {
+    month: 'long',
+    year: 'numeric',
+  }).format(monthStart)
+  const currentMonthHasMovements = transactions.some((item) => monthKey(item.date) === currentMonth)
 
   const topCategories = (() => {
     const grouped = new Map<string, number>()
@@ -234,15 +238,29 @@ export function MonthPage() {
             <label className="muted-label" htmlFor="month-picker">
               Scegli il mese
             </label>
-            <input
-              id="month-picker"
-              className="input"
-              type="month"
-              value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
-            />
+            <div className="compact-row">
+              <input
+                id="month-picker"
+                className="input"
+                type="month"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+              />
+              <button className="ghost-button" onClick={() => setSelectedMonth(currentMonth)} type="button">
+                Mese corrente
+              </button>
+            </div>
+            {selectedMonth !== currentMonth && currentMonthHasMovements ? (
+              <p className="muted-text">
+                Stai guardando {selectedMonthLabel}. Le spese di oggi sono nel mese corrente.
+              </p>
+            ) : null}
           </div>
           <div className="summary-text-list">
+            <div className="summary-text-row">
+              <span>Movimenti inclusi</span>
+              <strong>{operationalTransactions.length}</strong>
+            </div>
             <div className="summary-text-row">
               <span>Fisso vs variabile</span>
               <strong>
@@ -383,6 +401,13 @@ export function MonthPage() {
         isOpen={Boolean(selectedTransaction)}
         onChange={(patch) => setEditForm((current) => ({ ...current, ...patch }))}
         onClose={() => setSelectedTransactionId(null)}
+        onRemove={() => {
+          if (!selectedTransaction) return
+          const shouldRemove = window.confirm(`Eliminare "${selectedTransaction.title}"?`)
+          if (!shouldRemove) return
+          removeTransaction(selectedTransaction.id)
+          setSelectedTransactionId(null)
+        }}
         onSave={() => {
           if (!selectedTransaction) return
           updateTransaction(selectedTransaction.id, {
